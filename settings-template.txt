@@ -1,0 +1,67 @@
+# ================================================================
+#  TikTok friend bot settings. Fill in the blanks, save, then run start.bat
+# ================================================================
+
+# --- You -----------------------------------------------------------
+OWNER_NAME=
+# YOUR TikTok username (the account that chats with the bot), e.g. @murdhi
+OWNER_TIKTOK=
+# Your TikTok NICKNAME exactly as it shows in the bot's chat list, e.g. TechtokMurdhi
+OWNER_TIKTOK_NAME=
+# YOUR Roblox username (so he can see when you're playing and what game)
+OWNER_ROBLOX=
+# Roblox playing: optional game to join when you're not in one (place id from the game's URL)
+PLAY_PLACE_ID=
+# How long he plays before getting off (minutes)
+PLAY_MINUTES=60
+TIMEZONE=Asia/Riyadh
+
+# --- The bot -----------------------------------------------------------
+ASSISTANT_NAME=Sam
+# friend (casual, jokes, supportive) or assistant (short and to the point)
+PERSONALITY=friend
+# Browser to use: msedge (built into Windows) or chrome
+BROWSER=msedge
+# How often to check for your messages, in seconds
+CHECK_SECONDS=6
+
+# --- Fun stuff ---------------------------------------------------------
+# Streamers to watch, comma-separated: platform:username:Nickname
+# (platform = tiktok, twitch, youtube or kick)
+STREAMERS=tiktok:rararotherichest1:Rararo
+LIVE_CHECK_MINUTES=5
+# Funny TikToks to send you per day (random number between min and max)
+VIDEOS_MIN=5
+VIDEOS_MAX=8
+VIDEO_SEARCHES=roblox funny moments, funny roblox, roblox memes, funny videos, try not to laugh, rararotherichest1
+# Reposts of relatable videos per day (he also watches + likes them)
+REPOSTS_PER_DAY=3
+# How often (hours) he checks your profile and Rararo's for new videos to watch + like
+SUPPORT_CHECK_HOURS=2
+# Daily streak message, and a reminder if you haven't texted him that day
+STREAK_TIME=00:10
+STREAK_REMINDER=21:00
+# Extra times a day he texts you first (on top of the start of each time window)
+CHECKINS_PER_DAY=2
+# When he texts you. He texts you first at the start of each window.
+SCHOOL_DAYS=sun,mon,tue,wed,thu
+SCHOOL_DAY_TIMES=05:00-06:30,14:20-02:00
+WEEKEND_TIMES=10:00-02:00
+
+# --- The brain (free) ------------------------------------------------
+# Free key, no card: https://console.groq.com/keys
+AI_PROVIDER=groq
+GROQ_API_KEY=
+GROQ_MODEL=openai/gpt-oss-120b
+# Optional backup, free: https://aistudio.google.com/apikey
+GEMINI_API_KEY=
+GEMINI_MODEL=gemini-2.5-flash
+
+# --- Email (optional, Gmail) -------------------------------------------
+# App Password: https://myaccount.google.com/apppasswords
+EMAIL_ADDRESS=
+EMAIL_APP_PASSWORD=
+EMAIL_IMAP_HOST=imap.gmail.com
+EMAIL_SMTP_HOST=smtp.gmail.com
+EMAIL_NOTIFY=true
+EMAIL_CHECK_MINUTES=5
