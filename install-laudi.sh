@@ -15,19 +15,25 @@ warn() { echo -e "${Y}! $*${N}"; }
 
 [ "$(id -u)" -eq 0 ] && { echo -e "${R}Don't run this with sudo. Run: bash install-laudi.sh${N}"; exit 1; }
 [ -f src/tiktok.js ] || { echo -e "${R}Run this from inside the laudi folder (the one with src/ in it).${N}"; exit 1; }
-[ "$(uname -m)" = "aarch64" ] || warn "This isn't a 64-bit Raspberry Pi OS ($(uname -m)). It may still work."
+FEDORA=0; command -v dnf >/dev/null && FEDORA=1
 
 step "1/7  Installing system stuff (Chromium, ffmpeg, git)… you may need to type your Pi password"
-sudo apt-get update -y
-CHROMIUM=chromium
-apt-cache show chromium >/dev/null 2>&1 || CHROMIUM=chromium-browser
-sudo apt-get install -y git curl ffmpeg "$CHROMIUM" fonts-noto-color-emoji ca-certificates
-sudo apt-get install -y gh >/dev/null 2>&1 || warn "GitHub CLI (gh) not available from apt - updates can still use plain git"
+if [ $FEDORA = 1 ]; then
+  sudo dnf install -y git curl chromium nodejs npm gh google-noto-color-emoji-fonts || true
+else
+  sudo apt-get update -y
+  CHROMIUM=chromium
+  apt-cache show chromium >/dev/null 2>&1 || CHROMIUM=chromium-browser
+  sudo apt-get install -y git curl ffmpeg "$CHROMIUM" fonts-noto-color-emoji ca-certificates
+  sudo apt-get install -y gh >/dev/null 2>&1 || warn "GitHub CLI (gh) not available from apt - updates can still use plain git"
+fi
 ok "system packages ready"
 
 step "2/7  Node.js"
 NODE_MAJOR=$(node -v 2>/dev/null | sed 's/v\([0-9]*\).*/\1/' || echo 0)
-if [ "${NODE_MAJOR:-0}" -lt 20 ]; then
+if [ "${NODE_MAJOR:-0}" -lt 20 ] && [ $FEDORA = 1 ]; then
+  sudo dnf install -y nodejs22 nodejs22-npm || sudo dnf install -y nodejs npm
+elif [ "${NODE_MAJOR:-0}" -lt 20 ]; then
   curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
   sudo apt-get install -y nodejs
 fi
@@ -74,12 +80,14 @@ fi
 
 step "6/7  Start with the Pi (Laudi + the phone remote)"
 mkdir -p "$HOME/.config/autostart" "$HOME/Desktop"
-TERM_APP=lxterminal; command -v lxterminal >/dev/null || TERM_APP=x-terminal-emulator
+TERM_APP=x-terminal-emulator
+for t in lxterminal ptyxis gnome-terminal konsole x-terminal-emulator; do command -v $t >/dev/null && { TERM_APP=$t; break; }; done
+TERM_ARGS="-e"; [ "$TERM_APP" = "ptyxis" ] || [ "$TERM_APP" = "gnome-terminal" ] && TERM_ARGS="--"
 cat > "$HOME/.config/autostart/laudi.desktop" <<EOF
 [Desktop Entry]
 Type=Application
 Name=Laudi
-Exec=$TERM_APP -t Laudi -e bash "$DIR/start.sh"
+Exec=$TERM_APP $TERM_ARGS bash "$DIR/start.sh"
 X-GNOME-Autostart-enabled=true
 EOF
 cat > "$HOME/.config/autostart/laudi-panel.desktop" <<EOF
@@ -94,7 +102,7 @@ cat > "$HOME/Desktop/Laudi.desktop" <<EOF
 Type=Application
 Name=Start Laudi
 Icon=applications-games
-Exec=$TERM_APP -t Laudi -e bash "$DIR/start.sh"
+Exec=$TERM_APP $TERM_ARGS bash "$DIR/start.sh"
 Terminal=false
 EOF
 chmod +x "$HOME/Desktop/Laudi.desktop" start.sh
@@ -138,6 +146,6 @@ echo "                 TikTok (alothainah), Element (@laudiai), WhatsApp (scan Q
 echo
 read -rp "Start Laudi now? [Y/n] " go
 if [ "${go,,}" != "n" ]; then
-  setsid "$TERM_APP" -t Laudi -e bash "$DIR/start.sh" >/dev/null 2>&1 < /dev/null &
+  setsid "$TERM_APP" $TERM_ARGS bash "$DIR/start.sh" >/dev/null 2>&1 < /dev/null &
   ok "Laudi is starting in a new window"
 fi

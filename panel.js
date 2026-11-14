@@ -47,8 +47,9 @@ const remote = (line) => fs.appendFileSync(path.join(DATA, 'remote.txt'), line +
 function start() {
   if (botPid()) return 'Laudi is already running';
   try { fs.unlinkSync(path.join(DATA, 'stop.flag')); } catch {}
-  const term = ['lxterminal', 'x-terminal-emulator'].find((t) => fs.existsSync(`/usr/bin/${t}`));
-  const cmd = term ? [term, ['-e', `bash "${path.join(ROOT, 'start.sh')}"`]] : ['bash', [path.join(ROOT, 'start.sh')]];
+  const term = ['lxterminal', 'ptyxis', 'gnome-terminal', 'konsole', 'x-terminal-emulator'].find((t) => fs.existsSync(`/usr/bin/${t}`));
+  const sh = path.join(ROOT, 'start.sh');
+  const cmd = !term ? ['bash', [sh]] : term === 'ptyxis' || term === 'gnome-terminal' ? [term, ['--', 'bash', sh]] : [term, ['-e', `bash "${sh}"`]];
   spawn(cmd[0], cmd[1], { cwd: ROOT, detached: true, stdio: 'ignore', env: process.env }).unref();
   return 'Starting Laudi… (~20 s)';
 }
