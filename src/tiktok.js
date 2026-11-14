@@ -1075,8 +1075,7 @@ async function checkLive() {
     if (live && config.liveSupport) livesupport.start(s, { ctx, think, liveUrl: fun.liveUrl(s) }).catch(() => {});
     if (live === false) livesupport.stop(s);
     if (live && !was) {
-      // Hype the group chats once per stream.
-      store.save('state.json', { ...store.load('state.json', {}), groupHype: { at: Date.now(), name: s.name, url: fun.liveUrl(s) } });
+      // (no group announcement: Rararo lives are DM-only)
       console.log(`[live] ${s.name} is live`);
       await enqueue(async () => {
         await send(fun.pick([`${s.name} is live rn 🔴`, `${s.name} just went live!! 🔴 go go`, `bro ${s.name} is streaming rn`]));

@@ -107,7 +107,8 @@ function groupPrompt(groupName, notes = '') {
     '- Usually short: one message, a few words to one sentence. Casual, mostly lowercase, an emoji sometimes. But if someone asks for something longer (a list, sentences, a story, homework help), DO it properly in one message.',
     '- If anyone talks to you, asks you something or says your name, ALWAYS answer them. Only stay quiet (reply exactly SKIP, nothing else) when people are clearly talking to each other.',
     '- No generic small talk ("yo", "wsp", "how are you"). Jump into something specific.',
-    '- You love Roblox, funny videos and the streamer Rararo (TikTok @rararotherichest1) and always support him.',
+    '- You love Roblox, funny videos and the streamer Rararo (TikTok @rararotherichest1).',
+    '- NEVER say in a group whether Rararo is live, going live or streaming, and never post his live link here, even if asked. Change the subject.',
     '- If someone asks for a video/vid/tiktok/meme, use the send_videos tool. Never type links yourself.',
     "- You're an AI and you're open about it. If someone asks, say so.",
     '- Be kind to everyone. No swearing, nothing mean, sexual, or dangerous. Assume people here might be young.',
@@ -190,9 +191,7 @@ async function tick(tab, { SEL, think, ownerNames }) {
     const g = groups[name] || {};
     // the unread badge changes the text; compare without it
     const sig = clean(text).split('\n').filter((l) => !/^\d{1,3}\+?$/.test(l.trim())).join('\n');
-    const hypeNow = store.load('state.json', {}).groupHype;
-    const hypePending = g.greeted && hypeNow && Date.now() - hypeNow.at < 30 * 60_000 && (g.hypedAt || 0) < hypeNow.at;
-    if (g.sig === sig && !hypePending) continue; // nothing new
+    if (g.sig === sig) continue; // nothing new
     if (g.notGroup && g.sig && g.checks > 2) {
       groups[name] = { ...g, sig };
       continue;
@@ -208,14 +207,7 @@ async function tick(tab, { SEL, think, ownerNames }) {
     }
     const incoming = msgs.filter((m) => m.incoming).map((m) => clean(m.text));
 
-    // Rararo just went live: hype it once in each group.
-    const hype = store.load('state.json', {}).groupHype;
-    if (g.greeted && hype && Date.now() - hype.at < 30 * 60_000 && (g.hypedAt || 0) < hype.at) {
-      groups[name] = { ...g, hypedAt: hype.at };
-      store.save('groups.json', groups);
-      await sendHumanIn(tab, SEL, `${hype.name.toLowerCase()} is live rn 🔴 go support 👑`).catch(() => {});
-      console.log(`[group] hyped ${hype.name}'s live in "${name}"`);
-    }
+    // (Rararo's lives are NOT announced in groups - only to the owner in DMs.)
     // Already said hi before (e.g. under an old name)? Don't say it twice.
     if (!g.greeted && msgs.some((m) => !m.incoming && new RegExp(config.assistantName, 'i').test(m.text))) {
       groups[name] = { greeted: true, seen: incoming.slice(-30), sig, history: [] };
