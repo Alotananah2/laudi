@@ -39,12 +39,13 @@ ok "packages installed"
 
 step "4/7  Settings + keys"
 if [ ! -f local-settings.txt ]; then
-  echo "Laudi needs his settings and keys from your PC."
-  echo "On the PC, copy these from Desktop\\tiktok-bot onto a USB stick:"
-  echo "   local-settings.txt   (and .env if it's there)"
-  echo "then put them into:  $DIR"
+  echo "No settings yet. Two options:"
+  echo "  1) make them here now (you'll paste 3 keys)   <- easiest"
+  echo "  2) copy local-settings.txt (and .env) from the PC's Desktop\\tiktok-bot folder into $DIR"
+  read -rp "Type 1 or 2: " a
+  if [ "$a" = "1" ]; then bash make-settings.sh; fi
   while [ ! -f local-settings.txt ]; do
-    read -rp "Press Enter when they're copied (or type skip): " a
+    read -rp "Press Enter when local-settings.txt is copied (or type skip): " a
     [ "$a" = "skip" ] && break
   done
 fi
