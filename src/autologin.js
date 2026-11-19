@@ -32,7 +32,10 @@ async function clickFirst(page, selectors) {
 /** TikTok: email/username + password. Returns a short status string. */
 async function tiktok(page) {
   const s = secrets.load();
-  if (!s.tiktokUser || !s.tiktokPass) return 'no TikTok login saved (dashboard > Setup)';
+  if (!s.tiktokUser || !s.tiktokPass) {
+    await page.goto('https://www.tiktok.com/login', { waitUntil: 'domcontentloaded', timeout: 60_000 }).catch(() => {});
+    return 'TikTok login page is open - log in on the Screen page';
+  }
   await page.goto('https://www.tiktok.com/login/phone-or-email/email', { waitUntil: 'domcontentloaded', timeout: 60_000 }).catch(() => {});
   await sleep(4000);
   const u = await fillFirst(page, ['input[name="username"]', 'input[placeholder*="mail" i]', 'input[type="text"]'], s.tiktokUser);

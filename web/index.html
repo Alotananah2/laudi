@@ -165,8 +165,8 @@
   <section class="page" id="p-screen">
     <h1>🖥️ Screen</h1>
     <div class="glass card">
-      <div class="row"><select id="tabs" onchange="shot()"></select><button onclick="input({type:'reload'})">↻</button><button onclick="input({type:'back'})">←</button></div>
-      <p class="muted">Laudi's browser has no real screen. Tap the picture to click. Type below to type.</p>
+      <div class="row"><button class="pri" onclick="input({type:'back'})">← Back</button><select id="tabs" onchange="shot()"></select><button onclick="input({type:'reload'})">↻</button></div>
+      <p class="muted">Laudi's browser has no real screen. Tap the picture to click. Type below to type. On a keyboard: <b>Ctrl+R</b> = Back.</p>
       <img id="screen" alt="Laudi's screen" onclick="tapScreen(event)">
       <div class="row" style="margin-top:10px"><input id="typeBox" placeholder="Type into the page…" autocomplete="off"><button class="pri" onclick="typeIt()">Type</button></div>
       <div class="grid3" style="margin-top:10px">
@@ -332,6 +332,7 @@ async function tick() {
     const sub = !on ? 'Laudi off' : v ? (typeof v === 'string' ? v : 'logged in') : v === null || v === undefined ? (k === 'discord' ? 'no token' : 'not open') : 'tap to log in';
     return `<div class="app" onclick="fixLogin('${k}')"><span class="dot ${st}"></span><b>${n}</b><small>${esc(sub)}</small></div>`;
   }).join('');
+  if (on && s.tiktok === false && !tick.sentToLogin) { tick.sentToLogin = true; toast('Log Laudi into TikTok here 👇'); go('screen'); setTimeout(() => selectTab('tiktok'), 900); }
   if (page === 'settings') { const L = $('log'); const end = L.scrollTop + L.clientHeight > L.scrollHeight - 30; L.textContent = s.log || ''; if (end) L.scrollTop = L.scrollHeight; }
 }
 async function fixLogin(k) {
@@ -410,6 +411,9 @@ async function saveSettings() {
   toast(r.ok ? 'Saved ✓ restarting Laudi' : r.error || 'Failed'); loadSettings();
 }
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+document.addEventListener('keydown', (e) => {
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'r' && page === 'screen') { e.preventDefault(); input({ type: 'back' }); toast('← Back'); }
+});
 boot();
 </script>
 </body>
