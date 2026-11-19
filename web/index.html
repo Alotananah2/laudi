@@ -156,6 +156,8 @@
         <button onclick="cmd('elring')">📞 Call me</button>
         <button onclick="cmd('hangup')">📴 Hang up</button>
         <button onclick="cmd('update')">⬇ Update</button>
+        <button onclick="cmd('gaming-on')">🎮 Gaming mode</button>
+        <button onclick="cmd('gaming-off')">🏁 Done playing</button>
       </div>
       <div class="row" style="margin-top:10px"><input id="say" placeholder="Make him say this on TikTok…"><button class="pri" onclick="say()">Send</button></div>
     </div>
@@ -214,6 +216,10 @@
       <label>Groq key <span class="tag" id="t_groq"></span></label><input id="e_groq" type="password">
       <label>Gemini key <span class="tag" id="t_gemini"></span></label><input id="e_gemini" type="password">
       <label>Edunation link</label><input id="e_edunationUrl">
+      <h2 style="margin-top:16px">Laudi on the Windows PC</h2>
+      <p class="muted">Laudi runs on the PC; this server is the hub. Use the address + PIN from Laudi Control's 📱 Phone tab.</p>
+      <label>PC address (like http://192.168.1.20:8787)</label><input id="e_pcUrl" placeholder="empty = Laudi runs on this server">
+      <label>PC PIN <span class="tag" id="t_pcPin"></span></label><input id="e_pcPin" inputmode="numeric" type="password">
       <label>Dashboard hours</label><select id="e_hours"><option value="20-10">8 PM – 10 AM</option><option value="always">Always</option></select>
       <label>New PIN (optional)</label><input id="e_pin" inputmode="numeric" type="password">
       <p><button class="pri" style="width:100%" onclick="saveSettings()">Save & restart Laudi</button></p>
@@ -323,7 +329,8 @@ async function tick() {
   $('state').textContent = on ? (hello.name || 'Laudi') + ' is on' : (hello.name || 'Laudi') + ' is off';
   $('bStart').disabled = on; $('bStop').disabled = !on; $('bRestart').disabled = !on;
   const up = s.since ? Math.round((Date.now() - s.since) / 60000) : 0;
-  $('meta').textContent = on ? `up ${up >= 60 ? Math.floor(up / 60) + 'h ' + (up % 60) + 'm' : up + 'm'} · ${s.postsToday || 0} posts today · memory ${s.machineMemory}%${s.inCall ? ' · 📞 in a call' : ''}` : `memory ${s.machineMemory}% · ${s.host}`;
+  const where = s.where === 'pc' ? (s.pcOnline ? '💻 on the PC · ' : '💻 PC is off / unreachable · ') : '';
+  $('meta').textContent = where + (on ? `up ${up >= 60 ? Math.floor(up / 60) + 'h ' + (up % 60) + 'm' : up + 'm'} · ${s.postsToday || 0} posts today · memory ${s.machineMemory}%${s.inCall ? ' · 📞 in a call' : ''}` : `memory ${s.machineMemory}% · ${s.host}`);
   const apps = s.apps || {};
   const val = { tiktok: s.tiktok, element: s.element, discord: s.discord, ...apps };
   $('apps').innerHTML = APPS.map(([k, n]) => {
@@ -405,14 +412,15 @@ async function loadSettings() {
   const s = await api('setup').catch(() => ({}));
   feats = { ...(s.features || {}) };
   $('feats').innerHTML = FEATS.map(([k, n]) => `<div class="switch"><span>${n}</span><div class="tog ${feats[k] ? 'on' : ''}" onclick="feats['${k}']=!feats['${k}'];this.classList.toggle('on')"></div></div>`).join('');
-  for (const k of ['tiktokUser', 'elementUser', 'edunationUrl', 'hours']) $('e_' + k).value = s[k] || '';
-  for (const k of ['tiktokPass', 'elementPass', 'discord', 'groq', 'gemini']) $('t_' + k).textContent = s.set && s.set[k] ? 'saved ✓' : 'missing';
+  for (const k of ['tiktokUser', 'elementUser', 'edunationUrl', 'hours', 'pcUrl']) $('e_' + k).value = s[k] || '';
+  for (const k of ['tiktokPass', 'elementPass', 'discord', 'groq', 'gemini', 'pcPin']) $('t_' + k).textContent = s.set && s.set[k] ? 'saved ✓' : 'missing';
 }
 async function saveSettings() {
   const b = { features: feats };
-  for (const k of ['tiktokUser', 'tiktokPass', 'elementUser', 'elementPass', 'discord', 'groq', 'gemini', 'edunationUrl', 'hours', 'pin']) { const v = $('e_' + k).value; if (v) b[k] = v; }
+  for (const k of ['tiktokUser', 'tiktokPass', 'elementUser', 'elementPass', 'discord', 'groq', 'gemini', 'edunationUrl', 'hours', 'pin', 'pcPin']) { const v = $('e_' + k).value; if (v) b[k] = v; }
+  b.pcUrl = $('e_pcUrl').value.trim();
   const r = await api('setup', b).catch((e) => ({ error: e.message }));
-  for (const k of ['tiktokPass', 'elementPass', 'discord', 'groq', 'gemini', 'pin']) $('e_' + k).value = '';
+  for (const k of ['tiktokPass', 'elementPass', 'discord', 'groq', 'gemini', 'pin', 'pcPin']) $('e_' + k).value = '';
   toast(r.ok ? 'Saved ✓ restarting Laudi' : r.error || 'Failed'); loadSettings();
 }
 const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));

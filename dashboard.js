@@ -90,18 +90,48 @@ const sysctl = (args) =>
     execFile(cmd, rest, { timeout: 15_000 }, (err, so, se) => res({ ok: !err, out: String(so || se || '').trim() }));
   });
 
-async function botCall(p, opts = {}) {
+// HUB MODE: Laudi runs on the Windows PC. LAUDI_PC_URL=http://<pc>:8787 (Laudi Control) + LAUDI_PC_PIN.
+const PC = () => {
+  const s = settings();
+  return s.LAUDI_PC_URL ? { url: s.LAUDI_PC_URL.replace(/\/+$/, ''), pin: s.LAUDI_PC_PIN || '' } : null;
+};
+
+async function timedFetch(url, opts = {}) {
   const ctrl = new AbortController();
   const t = setTimeout(() => ctrl.abort(), opts.timeout || 4000);
   try {
-    const r = await fetch(BOT + p, { ...opts, signal: ctrl.signal });
-    return r;
+    return await fetch(url, { ...opts, signal: ctrl.signal });
   } finally {
     clearTimeout(t);
   }
 }
 
+/** Talk to Laudi's control port: here (127.0.0.1:8788) or on the PC through Laudi Control. */
+async function botCall(p, opts = {}) {
+  const pc = PC();
+  if (!pc) return timedFetch(BOT + p, opts);
+  const sep = p.includes('?') ? '&' : '?';
+  return timedFetch(`${pc.url}/api/bot${p}${sep}pin=${encodeURIComponent(pc.pin)}`, { ...opts, timeout: Math.max(opts.timeout || 4000, 6000) });
+}
+
+/** Laudi Control on the PC (start/stop/status even when Laudi is off). */
+async function pcApi(p, q = {}) {
+  const pc = PC();
+  const qs = new URLSearchParams({ ...q, pin: pc.pin }).toString();
+  const r = await timedFetch(`${pc.url}/api/${p}?${qs}`, { timeout: 8000 });
+  return r.json();
+}
+
 async function botStatus() {
+  if (PC()) {
+    let pcSt = null, live = null;
+    try { pcSt = await pcApi('status'); } catch {}
+    try {
+      const r = await botCall('/status', { timeout: 5000 });
+      if (r.ok) live = await r.json();
+    } catch {}
+    return { service: pcSt ? 'on the PC' : 'PC unreachable', where: 'pc', pcOnline: Boolean(pcSt), pcLog: pcSt ? pcSt.log : '', pcName: pcSt ? pcSt.pc : '', running: Boolean(live) || Boolean(pcSt && pcSt.running), ...(live || {}) };
+  }
   const svc = await sysctl(['is-active', 'laudi.service']);
   let live = null;
   try {
@@ -113,6 +143,7 @@ async function botStatus() {
 }
 
 async function startBot() {
+  if (PC()) return (await pcApi('cmd', { c: 'start' }).catch((e) => ({ msg: `PC unreachable: ${e.message}` }))).msg || 'Starting Laudi on the PC…';
   try { fs.unlinkSync(path.join(DATA, 'stop.flag')); } catch {}
   const r = await sysctl(['start', 'laudi.service']);
   if (r.ok) return 'Starting Laudi… (~20 s)';
@@ -122,6 +153,7 @@ async function startBot() {
 }
 
 async function stopBot() {
+  if (PC()) return (await pcApi('cmd', { c: 'stop' }).catch((e) => ({ msg: `PC unreachable: ${e.message}` }))).msg || 'Stopping Laudi on the PC';
   fs.writeFileSync(path.join(DATA, 'stop.flag'), 'stop');
   const r = await sysctl(['stop', 'laudi.service']);
   if (!r.ok) remote('shutdown');
@@ -129,6 +161,10 @@ async function stopBot() {
 }
 
 function remote(line) {
+  if (PC()) {
+    botCall('/remote', { method: 'POST', body: JSON.stringify({ line }), timeout: 8000 }).catch((e) => console.warn('[hub] PC unreachable:', e.message));
+    return;
+  }
   fs.appendFileSync(path.join(DATA, 'remote.txt'), String(line).replace(/[\r\n]+/g, ' ') + '\n');
 }
 
@@ -194,6 +230,7 @@ function setupView() {
     hours: s.DASHBOARD_HOURS || '20-10',
     timezone: s.TIMEZONE || 'Asia/Riyadh',
     edunationUrl: s.EDUNATION_URL || 'https://app.edu-nation.net/',
+    pcUrl: s.LAUDI_PC_URL || '',
     // secrets: only say whether they're set, never send them back
     set: {
       tiktokPass: has(sec.tiktokPass),
@@ -202,6 +239,7 @@ function setupView() {
       gemini: has(s.GEMINI_API_KEY),
       discord: has(s.DISCORD_TOKEN),
       pin: has(s.DASHBOARD_PIN),
+      pcPin: has(s.LAUDI_PC_PIN),
     },
     features: {
       GROUPS: s.GROUPS !== '0',
@@ -222,6 +260,8 @@ function saveSetup(b) {
   };
   for (const [k, env] of Object.entries(map)) if (typeof b[k] === 'string' && b[k].trim()) p[env] = b[k].trim();
   if (typeof b.hours === 'string' && /^(always|\d{1,2}-\d{1,2})$/i.test(b.hours.trim())) p.DASHBOARD_HOURS = b.hours.trim();
+  if (typeof b.pcUrl === 'string') p.LAUDI_PC_URL = b.pcUrl.trim().replace(/\/+$/, '');
+  if (b.pcPin) p.LAUDI_PC_PIN = String(b.pcPin).trim();
   if (b.groq) p.GROQ_API_KEY = String(b.groq).trim();
   if (b.gemini) p.GEMINI_API_KEY = String(b.gemini).trim();
   if (b.discord) p.DISCORD_TOKEN = String(b.discord).trim();
@@ -348,13 +388,15 @@ http
 
       if (u.pathname === '/api/status') {
         const st = await botStatus();
-        return json({ ...st, host: os.hostname(), machineMemory: memPct(), log: logTail(Number(u.searchParams.get('lines')) || 40) });
+        const n = Number(u.searchParams.get('lines')) || 40;
+        const log = st.where === 'pc' ? String(st.pcLog || '').split('\n').slice(-n).join('\n') : logTail(n);
+        return json({ ...st, host: st.where === 'pc' ? `${st.pcName || 'PC'} (hub: ${os.hostname()})` : os.hostname(), machineMemory: memPct(), log });
       }
       if (u.pathname === '/api/setup') {
         if (req.method === 'GET') return json(setupView());
         const b = await readBody(req);
         saveSetup(b);
-        if (b.restart !== false && (await botStatus()).running) remote('restart');
+        if (b.restart !== false && !PC() && (await botStatus()).running) remote('restart');
         return json({ ok: true });
       }
       if (u.pathname === '/api/cmd' && req.method === 'POST') {
@@ -362,6 +404,8 @@ http
         const c = String(b.c || '').toLowerCase();
         if (c === 'start') return json({ msg: await startBot() });
         if (c === 'stop') return json({ msg: await stopBot() });
+        if (c === 'restart' && PC()) return json({ msg: (await pcApi('cmd', { c: 'restart' }).catch(() => ({}))).msg || 'Restarting Laudi on the PC…' });
+        if (c === 'gaming-on' || c === 'gaming-off') return json((remote(c.replace('-', ' ')), { msg: c === 'gaming-on' ? 'Gaming mode on 🎮' : 'Gaming mode off' }));
         if (c === 'restart') {
           const r = await sysctl(['restart', 'laudi.service']);
           if (!r.ok) remote('restart');
