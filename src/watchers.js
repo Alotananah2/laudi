@@ -326,4 +326,14 @@ const ownerTools = {
 const OWNER_TOOLS_PROMPT =
   " You CAN read his WhatsApp and see his Gmail/Instagram/Edunation inbox with your tools (read only, you never send for him). When he asks what someone said or sent, ALWAYS call whatsapp_read_chat and tell him what it says. Never say you can't see his messages.";
 
-module.exports = { start, pages, inbox, waUnread, waReadChat, ownerTools, OWNER_TOOLS_PROMPT };
+/** For the dashboard: is each app logged in? true / false / null (tab not open) */
+async function status() {
+  const out = {};
+  for (const site of SITES) {
+    const p = tabs[site.key];
+    out[site.key] = !p || p.isClosed() ? null : Boolean(await site.loggedIn(p).catch(() => false));
+  }
+  return out;
+}
+
+module.exports = { start, pages, inbox, waUnread, waReadChat, ownerTools, OWNER_TOOLS_PROMPT, status };

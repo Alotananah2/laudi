@@ -61,7 +61,7 @@ async function models() {
 /** Ask a vision model about some images. Tries every model until one answers. Returns '' if none did. */
 async function look(images, prompt, { timeout = 25_000, cheap = false } = {}) {
   const list = [...(await models())];
-  // Roblox looks at the screen all the time: use the light models first, keep the best ones for videos.
+  // Use the light models first, keep the best ones for videos.
   if (cheap) list.sort((x, y) => (/lite|gemma/.test(y.model) ? 1 : 0) - (/lite|gemma/.test(x.model) ? 1 : 0));
   else if (lastGood) list.sort((x, y) => (y.model === lastGood) - (x.model === lastGood));
   for (const p of list) {
@@ -141,7 +141,7 @@ async function grab(tab) {
 }
 
 /**
- * Opens `url` in `tab` and judges it. want: what the owner asked for ("" = roblox or funny stuff).
+ * Opens `url` in `tab` and judges it. want: what the owner asked for ("" = funny stuff).
  * Returns { ok, about, reaction, reason }.
  */
 async function judge(tab, url, want) {
@@ -155,7 +155,7 @@ async function judge(tab, url, want) {
   await tab.waitForSelector('video', { timeout: 8000 }).catch(() => {});
   await sleep(1500);
   const { desc, author, music, frames } = await grab(tab);
-  const goal = want || 'something funny, Roblox, gaming or meme-y that a teen gamer would laugh at';
+  const goal = want || 'something funny, gaming or meme-y that a teen would laugh at';
   const prompt =
     `You are ${config.assistantName}, picking a TikTok to send your best friend. They want: "${goal}".\n` +
     `Video caption: "${desc.slice(0, 400)}"\nCreator: ${author || '?'}\nSound: ${music || '?'}\n` +

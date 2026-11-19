@@ -1,5 +1,5 @@
 // Extra features: auto-start with Windows, health check + alerts, memory saver,
-// Rararo new-video drops, Roblox playtime stats + friend pings, DM games, school-night nudges.
+// DM games, school-night nudges.
 const config = require('./config');
 const fs = require('fs');
 const os = require('os');
@@ -62,6 +62,11 @@ function singleInstance() {
 // ------------------------------------------------------------------ 2. health check + alerts
 
 function ramPct() {
+  try {
+    const m = require('fs').readFileSync('/proc/meminfo', 'utf8');
+    const t = +m.match(/MemTotal:\s+(\d+)/)[1], a = +m.match(/MemAvailable:\s+(\d+)/)[1];
+    return Math.round((1 - a / t) * 100);
+  } catch {}
   return Math.round((1 - os.freemem() / os.totalmem()) * 100);
 }
 
@@ -70,15 +75,13 @@ async function healthReport() {
   const up = Math.round((Date.now() - startedAt) / 3_600_000);
   const tiktokOk = await api.loggedIn().catch(() => false);
   const discord = s.discordBot ? `✅ ${s.discordBot}` : '❌ not connected';
-  const rbx = s.roblox && s.roblox.name ? `✅ ${s.roblox.name}` : '❌ not logged in';
   const today = now().toDateString();
   return [
     `health check 🩺`,
     `tiktok: ${tiktokOk ? '✅' : '❌ logged out!'}`,
     `discord: ${discord}`,
-    `roblox: ${rbx}`,
     `posts today: ${s.postDay === today ? s.postCount || 0 : 0}`,
-    `running for ${up}h · pc memory ${ramPct()}%`,
+    `running for ${up}h · memory ${ramPct()}%`,
   ].join('\n');
 }
 
@@ -127,128 +130,11 @@ async function janitor() {
   if (closed) console.log(`[extras] closed ${closed} unused tab(s) to save memory (pc memory ${ramPct()}%)`);
 }
 
-// ------------------------------------------------------------------ 4. Rararo posted a new video -> send it
-
-async function rararoTick() {
-  const s0 = require('./fun').streamers().find((x) => x.platform === 'tiktok');
-  if (!s0 || quiet()) return;
-  const s = st();
-  if (Date.now() < (s.clipsPauseUntil || 0)) return;
-  let links = [];
-  try {
-    links = await api.withTab((t) => require('./fun').profileVideos(t, s0.user, 6), 90_000);
-  } catch (err) {
-    save({ clipsPauseUntil: Date.now() + 2 * 3_600_000 });
-    return console.warn(`[clips] couldn't check ${s0.name}'s videos (${err.message.split('\n')[0].slice(0, 60)}), trying again in 2h`);
-  }
-  if (!links.length) return;
-  const seen = new Set(s.rararoSeen || []);
-  const fresh = links.filter((l) => !seen.has(l));
-  save({ rararoSeen: [...new Set([...(s.rararoSeen || []), ...links])].slice(-200) });
-  if (!s.rararoSeen) return; // first look: just remember what's already there
-  if (!fresh.length) return;
-  const link = fresh[0];
-  console.log(`[clips] ${s0.name} posted: ${link}`);
-  let reaction = '';
-  try {
-    const v = await api.withTab((t) => require('./watch').judge(t, link, `a new video by ${s0.name}`), 120_000);
-    reaction = v && v.about ? v.about : '';
-  } catch {}
-  const line = await api
-    .think(
-      [
-        { role: 'system', content: `You are ${config.assistantName}, a hyped fan of ${s0.name}. Write a 3-10 word text to your best friend that ${s0.name} just posted a new video. Lowercase, an emoji. Plain text.` },
-        { role: 'user', content: `The video: ${reaction || 'unknown'}` },
-      ],
-      { definitions: [], run: async () => '' },
-    )
-    .catch(() => '');
-  await api.shareLink(link, clean(line) || `${s0.name.toLowerCase()} just posted 🔥 go watch`);
-}
-
-// ------------------------------------------------------------------ 5. Roblox: playtime stats + friends hopping on
-
-const weekKey = (d = now()) => {
-  const x = new Date(d);
-  x.setDate(x.getDate() - ((x.getDay() + 1) % 7)); // weeks start on Saturday
-  return x.toDateString();
-};
-
-function statsTick() {
-  const s = st();
-  const p = s.robloxPresence;
-  if (!p || p.type !== 2 || !p.game) return;
-  const stats = store.load('roblox-stats.json', {});
-  const wk = weekKey();
-  stats[wk] = stats[wk] || {};
-  stats[wk][p.game] = (stats[wk][p.game] || 0) + 2; // called every 2 minutes
-  // keep the last 8 weeks
-  for (const k of Object.keys(stats).sort((a, b) => new Date(a) - new Date(b)).slice(0, -8)) delete stats[k];
-  store.save('roblox-stats.json', stats);
-}
-
-function statsText(wk = weekKey()) {
-  const games = Object.entries(store.load('roblox-stats.json', {})[wk] || {}).sort((a, b) => b[1] - a[1]);
-  if (!games.length) return 'no roblox this week yet 👀';
-  const total = games.reduce((n, [, m]) => n + m, 0);
-  const fmt = (m) => (m >= 60 ? `${Math.floor(m / 60)}h ${m % 60}m` : `${m}m`);
-  return [`roblox this week 🎮 ${fmt(total)} total`, ...games.slice(0, 5).map(([g, m]) => `• ${g}: ${fmt(m)}`)].join('\n');
-}
-
-async function weeklyStatsTick() {
-  const d = now();
-  // Friday 7pm
-  if (d.getDay() !== 5 || d.getHours() !== 19) return;
-  const s = st();
-  if (s.statsSentWeek === weekKey()) return;
-  save({ statsSentWeek: weekKey() });
-  const text = statsText();
-  if (/no roblox/.test(text)) return;
-  const joke = await api
-    .think(
-      [
-        { role: 'system', content: `You are ${config.assistantName}. Write ONE short funny lowercase comment (max 10 words) about these weekly Roblox stats for your best friend.` },
-        { role: 'user', content: text },
-      ],
-      { definitions: [], run: async () => '' },
-    )
-    .catch(() => '');
-  api.enqueue(() => api.send(`${text}${joke ? `\n${clean(joke)}` : ''}`));
-}
-
-async function friendsTick() {
-  if (quiet()) return;
-  const s = st();
-  if (!s.ownerRobloxId) return;
-  const today = now().toDateString();
-  const pings = s.friendPingDay === today ? s.friendPings || 0 : 0;
-  if (pings >= 4) return;
-  const tab = await api.ensureRobloxTab().catch(() => null);
-  if (!tab) return;
-  const roblox = require('./roblox');
-  const friends = (await roblox.friends(tab, s.ownerRobloxId).catch(() => [])).filter((f) => !s.roblox || f.id !== s.roblox.id);
-  if (!friends.length) return;
-  const pres = await roblox.presenceMany(tab, friends.map((f) => f.id)).catch(() => ({}));
-  const before = s.friendPresence || {};
-  const after = {};
-  const hopped = [];
-  for (const f of friends) {
-    const p = pres[f.id];
-    if (!p) continue;
-    after[f.id] = p.type;
-    if (p.type === 2 && before[f.id] !== undefined && before[f.id] !== 2 && p.game) hopped.push(`${f.name} (${p.game})`);
-  }
-  save({ friendPresence: after });
-  if (!hopped.length || (s.robloxPresence && s.robloxPresence.type === 2)) return; // don't ping while he's already playing
-  save({ friendPingDay: today, friendPings: pings + 1 });
-  api.enqueue(() => api.send(`${hopped.slice(0, 2).join(' and ')} just hopped on roblox 🎮 wanna join?`));
-}
-
 // ------------------------------------------------------------------ 6. DM games: /trivia /quiz /wyr /score
 
 async function newQuestion() {
   const thinkFn = api ? api.think : require('./brain').think;
-  const topics = ['Roblox', 'video games', 'Minecraft', 'football', 'fun science', 'animals', 'world records', 'TikTok and memes', 'geography', 'movies'];
+  const topics = ['video games', 'Minecraft', 'football', 'fun science', 'animals', 'world records', 'TikTok and memes', 'geography', 'movies'];
   const raw = await thinkFn(
     [
       {
@@ -284,7 +170,7 @@ async function gameCommand(text) {
     const q = await api
       .think(
         [
-          { role: 'system', content: 'Write ONE funny "would you rather" for a teen gamer (Roblox/gaming/school/food). Short, clean. Plain text starting with "would u rather".' },
+          { role: 'system', content: 'Write ONE funny "would you rather" for a teen gamer (gaming/school/food). Short, clean. Plain text starting with "would u rather".' },
           { role: 'user', content: 'go' },
         ],
         { definitions: [], run: async () => '' },
@@ -376,21 +262,11 @@ const daysUntil = (iso) => {
   return Math.round((b - a) / 86_400_000);
 };
 
-async function avatarB64(userId) {
-  const tab = await api.ensureRobloxTab().catch(() => null);
-  if (!tab) return null;
-  const req = tab.context().request;
-  const r = await req.get(`https://thumbnails.roblox.com/v1/users/avatar?userIds=${userId}&size=420x420&format=Png&isCircular=false`, { timeout: 20_000 });
-  const url = r.ok() && (await r.json()).data[0].imageUrl;
-  if (!url) return null;
-  const img = await req.get(url, { timeout: 20_000 });
-  return img.ok() ? (await img.body()).toString('base64') : null;
-}
 
 async function funCommand(text) {
   const arg = text.replace(/^\/\w+\s*/, '').trim();
   if (/^\/roast\b/i.test(text))
-    return api.send((await T(`${ME()} Give a FRIENDLY roast (1-2 lines, funny, never mean about looks/family/religion). It's all love.`, arg || `roast ${config.ownerName} for playing too much roblox`)) || 'ur so bad at obbies the checkpoints feel bad for u 💀');
+    return api.send((await T(`${ME()} Give a FRIENDLY roast (1-2 lines, funny, never mean about looks/family/religion). It's all love.`, arg || `roast ${config.ownerName} for gaming too much`)) || 'ur so bad at games 💀');
   if (/^\/8ball\b/i.test(text))
     return api.send(`🎱 ${pick(['yes fr', 'nah 💀', 'ask again after a snack', '100%', 'not looking good chief', 'the stars say yes ✨', 'bro idk 😭', 'definitely', 'no shot'])}`);
   if (/^\/pick\b/i.test(text)) {
@@ -398,23 +274,8 @@ async function funCommand(text) {
     if (opts.length < 2) return api.send('give me options like: /pick pizza or burger');
     return api.send(`${pick(opts)} 👉 ${pick(['final answer', 'trust me', 'no debate', 'easy choice'])}`);
   }
-  if (/^\/rate\b/i.test(text)) {
-    const s = st();
-    if (!s.ownerRobloxId) return api.send("i don't know ur roblox yet 😭");
-    const b64 = await avatarB64(s.ownerRobloxId).catch(() => null);
-    if (!b64) return api.send("couldn't load ur avatar rn 😭 (am i logged into roblox?)");
-    const out = await require('./watch')
-      .look([b64], `${ME()} This is your friend's Roblox avatar. Rate the fit out of 10 with a funny 1-2 line review (what's fire, what to change). Plain text.`, { timeout: 30_000 })
-      .catch(() => '');
-    return api.send(clean(out) || 'my eyes are lagging rn, try /rate again 😭');
-  }
-  if (/^\/game\b/i.test(text)) {
-    const played = Object.entries(store.load('roblox-stats.json', {})[weekKey()] || {}).map(([g]) => g).join(', ');
-    return api.send(
-      (await T(`${ME()} Recommend 3 real, popular Roblox games for your friend to try, one line each with why. Only games you're sure exist.`, `He plays: ${played || 'Pilot Training Flight Simulator, Build a Phone Empire'}. Something different but similar vibe.`)) ||
-        'try doors, blade ball and grow a garden 🎮',
-    );
-  }
+
+
   if (/^\/recap\b/i.test(text)) {
     const h = store.load('history.json', []).slice(-40).map((m) => `${m.role === 'user' ? 'him' : 'me'}: ${String(m.content).slice(0, 200)}`).join('\n');
     return api.send((await T(`${ME()} Recap your recent chats with your friend in 3-5 short funny bullet lines (use "•").`, h || '(nothing yet)')) || 'we just vibed honestly 😂');
@@ -441,7 +302,7 @@ async function funCommand(text) {
   }
   if (/^\/story\b/i.test(text)) {
     const opening = await T(
-      `${ME()} Start a short choose-your-own-adventure story set in a Roblox-like world starring your friend. 3-4 short lines, end with 2-3 numbered choices.`,
+      `${ME()} Start a short choose-your-own-adventure story set in a video-game world starring your friend. 3-4 short lines, end with 2-3 numbered choices.`,
       arg || 'surprise me',
     );
     save({ story: { turns: [{ role: 'assistant', content: opening }], at: Date.now() } });
@@ -557,7 +418,7 @@ async function quick(text) {
   if (/^[!/]roast\b/i.test(text))
     return (await T(`${ME()} Give a FRIENDLY roast (1-2 lines, funny, never mean about looks/family/religion). It's all love.`, arg || 'roast the whole chat')) || 'yall type like ur wifi is from 2009 💀';
   if (/^[!/](wyr|wouldyourather)\b/i.test(text))
-    return `${(await T('Write ONE funny "would you rather" for teen gamers (Roblox/gaming/school/food). Short, clean. Plain text starting with "would u rather".', 'go')) || 'would u rather only play obbies forever or never again'} 🤔`;
+    return `${(await T('Write ONE funny "would you rather" for teen gamers (gaming/school/food). Short, clean. Plain text starting with "would u rather".', 'go')) || 'would u rather only play obbies forever or never again'} 🤔`;
   return null;
 }
 
@@ -577,13 +438,9 @@ function start(a) {
   every(5 * 60_000, healthTick, 60_000);
   every(10 * 60_000, janitor, 5 * 60_000);
   if (!/^(1|true|yes|on)$/i.test(process.env.EXTRAS_ENABLED || '1')) return console.log('[extras] off (Laudi Control)');
-  every(30 * 60_000, rararoTick, 3 * 60_000);
-  every(2 * 60_000, statsTick, 2 * 60_000);
-  every(10 * 60_000, weeklyStatsTick, 4 * 60_000);
-  every(5 * 60_000, friendsTick, 6 * 60_000);
   every(5 * 60_000, schoolTick, 2 * 60_000);
   every(10 * 60_000, datesTick, 90_000);
-  console.log('[extras] health check, memory saver, Rararo drops, Roblox stats, games and school nudges are on');
+  console.log('[extras] health check, memory saver, games and school nudges are on');
 }
 
-module.exports = { start, singleInstance, gameCommand, gameAnswer, statsText, healthReport, funCommand, storyTurn, battleAsk, battleAnswer, battleBoard, quick };
+module.exports = { start, singleInstance, gameCommand, gameAnswer, healthReport, funCommand, storyTurn, battleAsk, battleAnswer, battleBoard, quick };

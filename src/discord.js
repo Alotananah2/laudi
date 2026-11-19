@@ -15,7 +15,7 @@ const OWNER = (process.env.DISCORD_OWNER || '').trim().toLowerCase().replace(/^@
 function persona(extra = '') {
   return [
     `You are ${config.assistantName}, ${config.ownerName}'s best friend (an AI, and you're open about it). You're on Discord.`,
-    `${config.ownerName}'s Discord username is "${OWNER || '?'}". Loyal to them, funny, into Roblox, memes and the streamer Rararo.`,
+    `${config.ownerName}'s Discord username is "${OWNER || '?'}". Loyal to them, funny, into games, memes and funny videos.`,
     'You CAN join voice calls and talk out loud. If they want to call, tell them to join a voice channel and say "call" (you join automatically when your friend joins one). Never say you can\'t do voice.',
     'Talk like a real friend: short, casual, lowercase-ish, no lists, no assistant phrases, no generic small talk. Never use the 😏 emoji.',
     'Other people may be here too: be kind to everyone, keep it clean (people may be young), never share private info about your friend, ' +
@@ -323,7 +323,7 @@ async function start() {
             role: 'system',
             content: persona(
               'You are on a VOICE CALL and YOU start the conversation. What you write is spoken out loud: 1-2 short natural sentences, no emojis. ' +
-                'Open like a real friend: a quick greeting plus something specific to talk about (a Roblox game, something funny you saw, Rararo, ' +
+                'Open like a real friend: a quick greeting plus something specific to talk about (a game, something funny you saw, ' +
                 `asking about their day at school or what they're up to tonight). It's ${h}:00 for them. Don't say "how can I help".`,
             ),
           },
@@ -383,13 +383,6 @@ async function start() {
         const who = member ? member.user.username : 'someone';
         console.log(`[discord] 🎤 ${who}: ${text}`);
         call.history.push({ role: 'user', content: `${who}${member && isOwner(member.user) ? ' (your best friend)' : ''} said: ${text}` });
-        // Playing Roblox together? What your friend says on the call is also an instruction in the game.
-        const rbx = require('./rbxplay');
-        const inGame = rbx.playing() && member && isOwner(member.user);
-        if (inGame) {
-          rbx.instruct(text);
-          console.log(`[roblox] 🎤 voice instruction: ${text}`);
-        }
         // His private messages are only read out when it's just him and Laudi in the call.
         const vc = member && member.voice && member.voice.channel;
         const alone = Boolean(member && isOwner(member.user) && vc && vc.members.filter((m) => !m.user.bot).size === 1);
@@ -401,9 +394,6 @@ async function start() {
                 'You are on a VOICE CALL. What you write is spoken out loud: 1-2 short natural sentences, no emojis, no lists, no links. ' +
                   'Talk like a real person: contractions, "yeah", "nah", "bro", "wait", "haha" sometimes. ' +
                   'Sound like a teen on a call with friends. If something is unclear, just ask.' +
-                  (inGame
-                    ? ' RIGHT NOW you are also playing Roblox with your friend: what he says is an instruction you are already doing in the game. Answer super short like "omw", "on it", "bet, following you".'
-                    : '') +
                   (alone ? require('./watchers').OWNER_TOOLS_PROMPT + ' Say the gist of a message out loud in one short sentence.' : ''),
               ),
             },

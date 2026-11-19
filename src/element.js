@@ -207,7 +207,7 @@ async function debugSnap() {
 function persona(extra = '') {
   return [
     `You are ${config.assistantName}, ${config.ownerName}'s best friend (an AI, open about it), talking on Element.`,
-    'Talk like a real teen friend: short, casual, no lists, no assistant phrases, never use 😏. Into Roblox, memes and the streamer Rararo.',
+    'Talk like a real teen friend: short, casual, no lists, no assistant phrases, never use 😏. Into games, memes and funny videos.',
     'If he talks about hurting himself or being in danger, be caring and tell him to talk to someone he trusts or emergency services.',
     extra,
   ]
@@ -361,7 +361,7 @@ async function greet() {
           role: 'system',
           content: persona(
             'You just called your friend and he picked up. YOU talk first: 1-2 short spoken sentences, no emojis. ' +
-              'A quick greeting plus something specific (a Roblox game, something funny, Rararo, his day).',
+              'A quick greeting plus something specific (a game, something funny, his day).',
           ),
         },
         { role: 'user', content: '(he picked up)' },
@@ -554,7 +554,8 @@ async function start(d) {
     }
     if (!warned) {
       warned = true;
-      console.log("\n👉 Element is open in Laudi's Chrome. Log in to LAUDI's Element account there once.\n");
+      console.log("\n👉 Element isn't logged in yet: logging in with the account from the dashboard setup…\n");
+      require('./autologin').element(ep).then((m) => console.log(`[element] ${m}`)).catch(() => {});
     }
     await sleep(10_000);
   }
@@ -599,4 +600,4 @@ async function start(d) {
   }, 60_000);
 }
 
-module.exports = { start, ring, sendText, tab, debugSnap, hangup, inCall: () => call.on };
+module.exports = { start, ring, sendText, tab, debugSnap, hangup, inCall: () => call.on, user: () => (auth && auth.user) || null };

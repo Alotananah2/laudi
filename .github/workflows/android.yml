@@ -1,0 +1,32 @@
+name: Build Laudi app (APK)
+on:
+  push:
+    paths: ['android/**', '.github/workflows/android.yml']
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: '17' }
+      - uses: android-actions/setup-android@v3
+      - uses: gradle/actions/setup-gradle@v4
+        with: { gradle-version: '8.10.2' }
+      - name: Build
+        working-directory: android
+        run: gradle assembleRelease --no-daemon --stacktrace
+      - name: Rename
+        run: cp android/app/build/outputs/apk/release/app-release.apk Laudi.apk
+      - uses: actions/upload-artifact@v4
+        with: { name: Laudi-apk, path: Laudi.apk }
+      - name: Publish as the "app" release (easy download link)
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: app
+          name: Laudi app
+          body: Latest Laudi phone app. Download Laudi.apk on your phone and install it.
+          files: Laudi.apk
+          make_latest: true

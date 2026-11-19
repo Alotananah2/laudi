@@ -46,7 +46,6 @@ const config = {
   ownerName: process.env.OWNER_NAME || 'Boss',
   ownerTiktok: (process.env.OWNER_TIKTOK || '').trim().replace(/^@/, ''),
   ownerTiktokName: (process.env.OWNER_TIKTOK_NAME || '').trim(),
-  ownerRoblox: (process.env.OWNER_ROBLOX || '').trim().replace(/^@/, ''),
   playPlaceId: (process.env.PLAY_PLACE_ID || '').trim(),
   playMinutes: Math.max(5, parseInt(process.env.PLAY_MINUTES || '60', 10) || 60),
   playStepMs: Math.max(300, parseInt(process.env.PLAY_STEP_MS || '1500', 10) || 1500),
@@ -54,11 +53,11 @@ const config = {
   visionGroqModel: process.env.VISION_GROQ_MODEL || 'meta-llama/llama-4-scout-17b-16e-instruct',
   browser: (process.env.BROWSER || 'msedge').toLowerCase(),
   checkSeconds: 1, // check for new messages every second
-  streamers: process.env.STREAMERS || 'tiktok:rararotherichest1:Rararo',
+  streamers: '',
   liveCheckMinutes: Math.max(10, parseInt(process.env.LIVE_CHECK_MINUTES || '10', 10) || 10),
   videosMin: Math.max(0, parseInt(process.env.VIDEOS_MIN || '5', 10)),
   videosMax: Math.max(0, parseInt(process.env.VIDEOS_MAX || '8', 10)),
-  videoSearches: (process.env.VIDEO_SEARCHES || 'roblox funny moments, funny roblox, roblox memes, funny videos, try not to laugh, rararotherichest1')
+  videoSearches: (process.env.VIDEO_SEARCHES || 'funny videos, try not to laugh, funny gaming moments, memes, funny animals')
     .split(',').map((s) => s.trim()).filter(Boolean),
   // Extra random "texting first" moments per day, on top of the burst at the start of each time window
   // Videos he makes and posts on his own TikTok per day (0 = off)

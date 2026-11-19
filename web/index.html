@@ -1,0 +1,416 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0b0b14">
+<link rel="manifest" href="/manifest.json">
+<link rel="icon" href="/icon.svg">
+<title>Laudi</title>
+<style>
+  :root {
+    --bg1:#0b0b14; --text:#f4f4fa; --dim:#a3a3b8; --glass:rgba(255,255,255,.08); --glass2:rgba(255,255,255,.14);
+    --rim:rgba(255,255,255,.22); --green:#34d399; --red:#f87171; --blue:#7c8cff; --amber:#fbbf24;
+  }
+  * { box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+  html,body { margin:0; min-height:100%; }
+  body {
+    background:var(--bg1); color:var(--text); font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    padding:calc(env(safe-area-inset-top) + 14px) 16px calc(env(safe-area-inset-bottom) + 96px); overflow-x:hidden;
+  }
+  /* liquid background blobs */
+  .bg { position:fixed; inset:0; z-index:-1; overflow:hidden; }
+  .bg i { position:absolute; width:70vmax; height:70vmax; border-radius:50%; filter:blur(60px); opacity:.55; animation:drift 26s ease-in-out infinite alternate; }
+  .bg i:nth-child(1){ background:#4f46e5; left:-20vmax; top:-25vmax; }
+  .bg i:nth-child(2){ background:#9333ea; right:-25vmax; top:10vmax; animation-duration:32s; }
+  .bg i:nth-child(3){ background:#0ea5e9; left:5vmax; bottom:-35vmax; animation-duration:38s; opacity:.4; }
+  @keyframes drift { to { transform:translate(8vmax,6vmax) scale(1.15); } }
+  .embed .bg { display:none; } .embed { background:transparent; padding-bottom:20px; }
+
+  .glass { background:var(--glass); border:1px solid var(--rim); border-radius:22px; backdrop-filter:blur(22px) saturate(160%);
+           -webkit-backdrop-filter:blur(22px) saturate(160%); box-shadow:inset 0 1px 0 rgba(255,255,255,.25), 0 10px 30px rgba(0,0,0,.25); }
+  .card { padding:16px; margin-bottom:14px; animation:rise .45s cubic-bezier(.2,.9,.3,1.2) both; }
+  @keyframes rise { from { opacity:0; transform:translateY(14px) scale(.98); } }
+  h1 { font-size:26px; margin:2px 0 14px; display:flex; align-items:center; gap:10px; }
+  h2 { font-size:13px; text-transform:uppercase; letter-spacing:.08em; color:var(--dim); margin:0 0 10px; }
+  .dot { width:12px; height:12px; border-radius:50%; background:var(--dim); flex:none; }
+  .on .dot, .dot.on { background:var(--green); box-shadow:0 0 0 0 rgba(52,211,153,.6); animation:pulse 1.8s infinite; }
+  .dot.off { background:var(--red); } .dot.wait { background:var(--amber); }
+  @keyframes pulse { to { box-shadow:0 0 0 12px rgba(52,211,153,0); } }
+  .row { display:flex; gap:10px; align-items:center; }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+  .grid3 { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+  button { font:inherit; font-weight:600; color:#fff; border:1px solid var(--rim); background:var(--glass2); border-radius:14px; padding:12px 10px;
+           transition:transform .12s, background .2s; cursor:pointer; }
+  button:active { transform:scale(.95); } button:disabled { opacity:.35; }
+  .go { background:linear-gradient(180deg,#34d399,#059669); } .stop { background:linear-gradient(180deg,#f87171,#dc2626); }
+  .pri { background:linear-gradient(180deg,#8b9bff,#5b5bd6); }
+  input, select { width:100%; font:inherit; color:var(--text); background:rgba(0,0,0,.25); border:1px solid var(--rim); border-radius:12px; padding:12px; }
+  label { display:block; font-size:13px; color:var(--dim); margin:10px 0 4px; }
+  .muted { color:var(--dim); font-size:13px; }
+  .apps { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .app { display:flex; align-items:center; gap:8px; padding:10px 12px; border-radius:14px; background:rgba(255,255,255,.05); border:1px solid rgba(255,255,255,.1); }
+  .app b { flex:1; font-weight:600; font-size:14px; } .app small { color:var(--dim); }
+  pre { margin:0; font:12px/1.4 ui-monospace,Menlo,Consolas,monospace; white-space:pre-wrap; word-break:break-word; color:#c7f9d4; max-height:55vh; overflow:auto; }
+  nav { position:fixed; left:12px; right:12px; bottom:calc(env(safe-area-inset-bottom) + 12px); display:flex; justify-content:space-around; padding:8px; z-index:5; }
+  nav button { background:none; border:0; color:var(--dim); font-size:11px; padding:6px 8px; display:flex; flex-direction:column; align-items:center; gap:2px; }
+  nav button span { font-size:20px; } nav button.sel { color:#fff; }
+  .embed nav { position:static; margin-bottom:12px; }
+  .page { display:none; } .page.sel { display:block; }
+  #screen { width:100%; border-radius:14px; display:block; background:#000; touch-action:manipulation; cursor:crosshair; min-height:120px; }
+  .switch { display:flex; align-items:center; justify-content:space-between; padding:10px 0; border-bottom:1px solid rgba(255,255,255,.07); }
+  .switch:last-child { border:0; }
+  .tog { width:50px; height:30px; border-radius:15px; background:rgba(255,255,255,.2); position:relative; transition:.25s; flex:none; }
+  .tog::after { content:""; position:absolute; width:24px; height:24px; border-radius:50%; background:#fff; top:3px; left:3px; transition:.25s cubic-bezier(.2,.9,.3,1.3); }
+  .tog.on { background:var(--green); } .tog.on::after { left:23px; }
+  .alarm { display:flex; align-items:center; gap:12px; padding:12px 0; border-bottom:1px solid rgba(255,255,255,.07); }
+  .alarm .t { font-size:30px; font-weight:300; letter-spacing:-.02em; } .alarm .l { flex:1; } .alarm.off .t { opacity:.4; }
+  .days { display:flex; gap:6px; flex-wrap:wrap; } .days button { width:38px; padding:8px 0; border-radius:50%; font-size:12px; }
+  .days button.sel { background:var(--blue); }
+  #toast { position:fixed; left:50%; top:calc(env(safe-area-inset-top) + 14px); transform:translate(-50%,-80px); padding:10px 16px; border-radius:16px;
+           transition:transform .35s cubic-bezier(.2,.9,.3,1.3); z-index:9; font-weight:600; }
+  #toast.show { transform:translate(-50%,0); }
+  .center { min-height:70vh; display:flex; flex-direction:column; justify-content:center; text-align:center; }
+  .big { font-size:54px; margin:0; } .hide { display:none !important; }
+  .steps { display:flex; gap:6px; margin-bottom:12px; } .steps i { flex:1; height:4px; border-radius:2px; background:rgba(255,255,255,.15); } .steps i.sel { background:var(--blue); }
+  .tag { font-size:11px; padding:2px 8px; border-radius:10px; background:rgba(255,255,255,.12); }
+</style>
+</head>
+<body>
+<div class="bg"><i></i><i></i><i></i></div>
+<div id="toast" class="glass"></div>
+
+<!-- closed hours -->
+<div id="closed" class="center hide">
+  <p class="big">🌙</p>
+  <h1 style="justify-content:center">Dashboard is sleeping</h1>
+  <p class="muted">It opens at <b id="opensAt">8 PM</b> and closes at <b id="closesAt">10 AM</b>.<br>Laudi keeps working, and your alarms still ring.</p>
+  <div class="glass card" style="text-align:left;margin-top:18px" id="closedAlarms"></div>
+</div>
+
+<!-- PIN -->
+<div id="login" class="center hide">
+  <p class="big">🔒</p><h1 style="justify-content:center">Laudi</h1>
+  <div class="glass card"><label>PIN</label><input id="pin" inputmode="numeric" type="password" autocomplete="off">
+    <p><button class="pri" style="width:100%" onclick="login()">Unlock</button></p></div>
+</div>
+
+<!-- first-time setup -->
+<div id="setup" class="hide">
+  <h1>👋 Set up Laudi</h1>
+  <div class="steps"><i></i><i></i><i></i><i></i></div>
+  <div class="glass card sstep">
+    <h2>1 · Laudi's TikTok</h2>
+    <p class="muted">The TikTok account Laudi uses (his own, not yours).</p>
+    <label>Username or email</label><input id="s_tiktokUser" autocomplete="off">
+    <label>Password</label><input id="s_tiktokPass" type="password" autocomplete="new-password">
+  </div>
+  <div class="glass card sstep">
+    <h2>2 · Laudi's Element + Discord</h2>
+    <label>Element username (like laudiai)</label><input id="s_elementUser" autocomplete="off">
+    <label>Element password</label><input id="s_elementPass" type="password" autocomplete="new-password">
+    <label>Discord bot token</label><input id="s_discord" type="password" autocomplete="off">
+  </div>
+  <div class="glass card sstep">
+    <h2>3 · You + AI keys</h2>
+    <div class="grid2"><div><label>Your name</label><input id="s_ownerName"></div><div><label>Laudi's name</label><input id="s_assistantName"></div></div>
+    <label>Your TikTok (@)</label><input id="s_ownerTiktok" placeholder="@techtokavgeek">
+    <label>Your TikTok display name</label><input id="s_ownerTiktokName">
+    <div class="grid2"><div><label>Your Discord username</label><input id="s_discordOwner"></div><div><label>Your Element</label><input id="s_elementOwner" placeholder="@you:matrix.org"></div></div>
+    <label>Groq API key <span class="tag">console.groq.com/keys</span></label><input id="s_groq" type="password">
+    <label>Gemini API key <span class="tag">aistudio.google.com/apikey</span></label><input id="s_gemini" type="password">
+  </div>
+  <div class="glass card sstep">
+    <h2>4 · Dashboard</h2>
+    <label>Choose a PIN (4-8 numbers)</label><input id="s_pin" inputmode="numeric" type="password">
+    <label>Open hours</label><select id="s_hours"><option value="20-10">8 PM – 10 AM</option><option value="always">Always</option></select>
+    <p class="muted">Passwords stay only on this computer (data/secrets.json). Laudi only uses them to log in to his own accounts.</p>
+  </div>
+  <div class="grid2"><button id="sBack" onclick="sstep(-1)">Back</button><button class="pri" id="sNext" onclick="sstep(1)">Next</button></div>
+</div>
+
+<!-- the app -->
+<div id="app" class="hide">
+  <!-- HOME -->
+  <section class="page sel" id="p-home">
+    <h1 id="title"><span class="dot" id="bigdot"></span><span id="state">Laudi</span></h1>
+    <div class="glass card">
+      <div class="grid3">
+        <button class="go" id="bStart" onclick="cmd('start')">▶ Start</button>
+        <button class="stop" id="bStop" onclick="cmd('stop')">■ Stop</button>
+        <button id="bRestart" onclick="cmd('restart')">↻ Restart</button>
+      </div>
+      <p class="muted" id="meta" style="margin:10px 0 0"></p>
+    </div>
+    <div class="glass card">
+      <h2>Accounts</h2>
+      <div class="apps" id="apps"></div>
+      <p class="muted" style="margin-bottom:0">Not logged in? Tap it. Puzzles, codes and QR codes are done in <b>Screen</b>.</p>
+    </div>
+    <div class="glass card">
+      <h2>Quick</h2>
+      <div class="grid2">
+        <button onclick="cmd('vid')">🎬 Send me a vid</button>
+        <button onclick="cmd('post-now')">📤 Post a TikTok</button>
+        <button onclick="cmd('hi')">💬 Text me</button>
+        <button onclick="cmd('elring')">📞 Call me</button>
+        <button onclick="cmd('hangup')">📴 Hang up</button>
+        <button onclick="cmd('update')">⬇ Update</button>
+      </div>
+      <div class="row" style="margin-top:10px"><input id="say" placeholder="Make him say this on TikTok…"><button class="pri" onclick="say()">Send</button></div>
+    </div>
+  </section>
+
+  <!-- SCREEN -->
+  <section class="page" id="p-screen">
+    <h1>🖥️ Screen</h1>
+    <div class="glass card">
+      <div class="row"><select id="tabs" onchange="shot()"></select><button onclick="input({type:'reload'})">↻</button><button onclick="input({type:'back'})">←</button></div>
+      <p class="muted">Laudi's browser has no real screen. Tap the picture to click. Type below to type.</p>
+      <img id="screen" alt="Laudi's screen" onclick="tapScreen(event)">
+      <div class="row" style="margin-top:10px"><input id="typeBox" placeholder="Type into the page…" autocomplete="off"><button class="pri" onclick="typeIt()">Type</button></div>
+      <div class="grid3" style="margin-top:10px">
+        <button onclick="input({type:'key',key:'Enter'})">Enter ⏎</button>
+        <button onclick="input({type:'key',key:'Tab'})">Tab ⇥</button>
+        <button onclick="input({type:'key',key:'Backspace'})">⌫</button>
+        <button onclick="input({type:'scroll',dy:-500})">▲ Scroll</button>
+        <button onclick="input({type:'scroll',dy:500})">▼ Scroll</button>
+        <button onclick="goUrl()">Go to…</button>
+      </div>
+    </div>
+  </section>
+
+  <!-- ALARMS -->
+  <section class="page" id="p-alarms">
+    <h1>⏰ Alarms</h1>
+    <div class="glass card" id="alarmList"></div>
+    <div class="glass card">
+      <h2>New alarm</h2>
+      <div class="grid2"><div><label>Time</label><input id="aTime" type="time" value="06:30"></div><div><label>Name</label><input id="aLabel" placeholder="School"></div></div>
+      <label>Repeat (none = once)</label>
+      <div class="days" id="aDays"></div>
+      <div class="switch"><span>Laudi calls me too 📞</span><div class="tog on" id="aCall" onclick="this.classList.toggle('on')"></div></div>
+      <button class="pri" style="width:100%" onclick="addAlarm()">Add alarm</button>
+      <p class="muted" id="alarmNote"></p>
+      <div class="grid2" id="nativeBtns" style="display:none"><button onclick="LaudiApp.testAlarm()">🔔 Test ring</button><button onclick="LaudiApp.changeServer()">🔗 Change address</button></div>
+    </div>
+  </section>
+
+  <!-- SETTINGS -->
+  <section class="page" id="p-settings">
+    <h1>⚙️ Setup</h1>
+    <div class="glass card">
+      <h2>What Laudi does</h2>
+      <div id="feats"></div>
+    </div>
+    <div class="glass card">
+      <h2>Accounts & keys</h2>
+      <p class="muted">Leave a password/key empty to keep the saved one.</p>
+      <label>Laudi's TikTok username/email</label><input id="e_tiktokUser">
+      <label>TikTok password <span class="tag" id="t_tiktokPass"></span></label><input id="e_tiktokPass" type="password" autocomplete="new-password">
+      <label>Element username</label><input id="e_elementUser">
+      <label>Element password <span class="tag" id="t_elementPass"></span></label><input id="e_elementPass" type="password" autocomplete="new-password">
+      <label>Discord bot token <span class="tag" id="t_discord"></span></label><input id="e_discord" type="password">
+      <label>Groq key <span class="tag" id="t_groq"></span></label><input id="e_groq" type="password">
+      <label>Gemini key <span class="tag" id="t_gemini"></span></label><input id="e_gemini" type="password">
+      <label>Edunation link</label><input id="e_edunationUrl">
+      <label>Dashboard hours</label><select id="e_hours"><option value="20-10">8 PM – 10 AM</option><option value="always">Always</option></select>
+      <label>New PIN (optional)</label><input id="e_pin" inputmode="numeric" type="password">
+      <p><button class="pri" style="width:100%" onclick="saveSettings()">Save & restart Laudi</button></p>
+    </div>
+    <div class="glass card"><h2>Log</h2><pre id="log">…</pre></div>
+  </section>
+
+  <nav class="glass">
+    <button class="sel" data-p="home"><span>🏠</span>Home</button>
+    <button data-p="screen"><span>🖥️</span>Screen</button>
+    <button data-p="alarms"><span>⏰</span>Alarms</button>
+    <button data-p="settings"><span>⚙️</span>Setup</button>
+  </nav>
+</div>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const EMBED = location.pathname === '/embed' || /[?&]embed/.test(location.search);
+if (EMBED) document.body.classList.add('embed');
+const NATIVE = window.LaudiApp; // set by the Android app
+let TOKEN = '';
+try { TOKEN = localStorage.getItem('lt') || ''; } catch (e) {}
+if (!TOKEN && NATIVE && NATIVE.getToken) TOKEN = NATIVE.getToken() || '';
+const DAYS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'];
+let hello = {}, page = 'home', timer = null, shotTimer = null, setupData = {}, step = 0, newDays = [];
+
+function toast(t) { const el = $('toast'); el.textContent = t; el.classList.add('show'); clearTimeout(toast.t); toast.t = setTimeout(() => el.classList.remove('show'), 2600); }
+function saveToken(t) { TOKEN = t; try { localStorage.setItem('lt', t); } catch (e) {} if (NATIVE && NATIVE.saveToken) NATIVE.saveToken(t); }
+async function api(p, body) {
+  const r = await fetch('/api/' + p, { method: body ? 'POST' : 'GET', headers: { 'Content-Type': 'application/json', 'X-Token': TOKEN }, body: body ? JSON.stringify(body) : undefined, cache: 'no-store' });
+  if (r.status === 401 && p !== 'login') { show('login'); throw new Error('login'); }
+  if (r.status === 403) { const j = await r.json().catch(() => ({})); if (j.error === 'closed') { closed(); throw new Error('closed'); } }
+  return r.json();
+}
+function show(id) { for (const x of ['closed', 'login', 'setup', 'app']) $(x).classList.toggle('hide', x !== id); }
+const fmtHour = (h) => { h = +h; return h === 0 ? '12 AM' : h < 12 ? h + ' AM' : h === 12 ? '12 PM' : h - 12 + ' PM'; };
+
+async function boot() {
+  hello = await fetch('/api/hello', { headers: { 'X-Token': TOKEN } }).then((r) => r.json()).catch(() => ({}));
+  document.title = hello.name || 'Laudi';
+  if (!hello.setup) return startSetup();
+  if (!hello.authed) return show('login');
+  syncAlarms();
+  if (!hello.open) return closed();
+  show('app'); go(page); tick(); clearInterval(timer); timer = setInterval(tick, 3000);
+}
+
+async function closed() {
+  show('closed');
+  const m = String(hello.hours || '20-10').match(/(\d+)-(\d+)/);
+  if (m) { $('opensAt').textContent = fmtHour(m[1]); $('closesAt').textContent = fmtHour(m[2]); }
+  const list = hello.authed ? await api('alarms').catch(() => []) : [];
+  $('closedAlarms').innerHTML = list.length ? '<h2>Your alarms</h2>' + list.filter((a) => a.enabled).map((a) => `<div class="alarm"><span class="t">${a.time}</span><span class="l">${esc(a.label)}</span></div>`).join('') : '<span class="muted">No alarms set.</span>';
+  setTimeout(boot, 60_000);
+}
+
+async function login() {
+  const r = await api('login', { pin: $('pin').value }).catch(() => ({}));
+  if (!r.token) return toast(r.error || 'Wrong PIN');
+  saveToken(r.token); $('pin').value = ''; boot();
+}
+
+// ---------- first-time setup
+async function startSetup() {
+  show('setup');
+  setupData = await fetch('/api/setup').then((r) => r.json()).catch(() => ({}));
+  for (const k of ['ownerName', 'assistantName', 'ownerTiktok', 'ownerTiktokName', 'discordOwner', 'elementOwner', 'tiktokUser', 'elementUser']) if ($('s_' + k)) $('s_' + k).value = setupData[k] || '';
+  step = 0; sstep(0);
+}
+async function sstep(d) {
+  const cards = [...document.querySelectorAll('.sstep')];
+  if (d > 0 && step === cards.length - 1) return finishSetup();
+  step = Math.max(0, Math.min(cards.length - 1, step + d));
+  cards.forEach((c, i) => { c.classList.toggle('hide', i !== step); });
+  [...document.querySelectorAll('.steps i')].forEach((s, i) => s.classList.toggle('sel', i <= step));
+  $('sBack').disabled = step === 0; $('sNext').textContent = step === cards.length - 1 ? 'Finish ✓' : 'Next';
+}
+async function finishSetup() {
+  const b = {};
+  for (const el of document.querySelectorAll('#setup input, #setup select')) b[el.id.slice(2)] = el.value;
+  if (!/^\d{4,8}$/.test(b.pin)) return toast('PIN: 4-8 numbers');
+  const r = await fetch('/api/setup', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b) }).then((x) => x.json()).catch(() => ({}));
+  if (!r.ok) return toast(r.error || 'Setup failed');
+  saveToken(r.token); toast('Saved! Laudi is starting 🚀'); boot();
+}
+
+// ---------- app
+document.querySelectorAll('nav button').forEach((b) => b.onclick = () => go(b.dataset.p));
+function go(p) {
+  page = p;
+  document.querySelectorAll('nav button').forEach((b) => b.classList.toggle('sel', b.dataset.p === p));
+  document.querySelectorAll('.page').forEach((s) => s.classList.toggle('sel', s.id === 'p-' + p));
+  document.querySelectorAll('#p-' + p + ' .card').forEach((c, i) => { c.style.animation = 'none'; c.offsetHeight; c.style.animation = ''; c.style.animationDelay = i * 60 + 'ms'; });
+  clearInterval(shotTimer);
+  if (p === 'screen') { loadTabs(); shotTimer = setInterval(shot, 1500); }
+  if (p === 'alarms') loadAlarms();
+  if (p === 'settings') loadSettings();
+}
+
+const APPS = [['tiktok', 'TikTok'], ['element', 'Element'], ['discord', 'Discord'], ['whatsapp', 'WhatsApp'], ['gmail', 'Gmail'], ['instagram', 'Instagram'], ['edunation', 'Edunation']];
+async function tick() {
+  let s;
+  try { s = await api('status?lines=60'); } catch (e) { return; }
+  const on = s.running;
+  $('title').className = on ? 'on' : '';
+  $('bigdot').className = 'dot ' + (on ? 'on' : 'off');
+  $('state').textContent = on ? (hello.name || 'Laudi') + ' is on' : (hello.name || 'Laudi') + ' is off';
+  $('bStart').disabled = on; $('bStop').disabled = !on; $('bRestart').disabled = !on;
+  const up = s.since ? Math.round((Date.now() - s.since) / 60000) : 0;
+  $('meta').textContent = on ? `up ${up >= 60 ? Math.floor(up / 60) + 'h ' + (up % 60) + 'm' : up + 'm'} · ${s.postsToday || 0} posts today · memory ${s.machineMemory}%${s.inCall ? ' · 📞 in a call' : ''}` : `memory ${s.machineMemory}% · ${s.host}`;
+  const apps = s.apps || {};
+  const val = { tiktok: s.tiktok, element: s.element, discord: s.discord, ...apps };
+  $('apps').innerHTML = APPS.map(([k, n]) => {
+    const v = val[k];
+    const st = !on ? 'off' : v ? 'on' : v === null || v === undefined ? 'wait' : 'off';
+    const sub = !on ? 'Laudi off' : v ? (typeof v === 'string' ? v : 'logged in') : v === null || v === undefined ? (k === 'discord' ? 'no token' : 'not open') : 'tap to log in';
+    return `<div class="app" onclick="fixLogin('${k}')"><span class="dot ${st}"></span><b>${n}</b><small>${esc(sub)}</small></div>`;
+  }).join('');
+  if (page === 'settings') { const L = $('log'); const end = L.scrollTop + L.clientHeight > L.scrollHeight - 30; L.textContent = s.log || ''; if (end) L.scrollTop = L.scrollHeight; }
+}
+async function fixLogin(k) {
+  if (k === 'tiktok' || k === 'element') {
+    const r = await api('autologin', { site: k }).catch(() => ({}));
+    toast(r.msg || r.error || 'Trying…');
+  } else if (k === 'discord') { go('settings'); return toast('Paste the Discord bot token here'); }
+  else toast(k === 'whatsapp' ? 'Scan the QR code in Screen with WhatsApp > Linked devices' : 'Log in on the Screen page');
+  go('screen');
+  setTimeout(() => selectTab(k), 600);
+}
+async function cmd(c) { const r = await api('cmd', { c }).catch(() => ({})); toast(r.msg || r.error || 'Done'); setTimeout(tick, 900); }
+async function say() { const t = $('say').value.trim(); if (!t) return; $('say').value = ''; const r = await api('cmd', { c: 'say', text: t }).catch(() => ({})); toast(r.msg || 'Sent'); }
+
+// ---------- screen
+let tabsList = [];
+async function loadTabs() {
+  tabsList = await api('tabs').catch(() => []);
+  if (!Array.isArray(tabsList)) { $('tabs').innerHTML = '<option>Laudi is off</option>'; return; }
+  const cur = $('tabs').value;
+  $('tabs').innerHTML = tabsList.map((t) => `<option value="${t.i}">${esc(shortUrl(t.url))}</option>`).join('');
+  if (cur) $('tabs').value = cur;
+  shot();
+}
+function selectTab(k) {
+  const words = { tiktok: 'tiktok', element: 'element', whatsapp: 'whatsapp', gmail: 'mail.google', instagram: 'instagram', edunation: 'edu-nation' };
+  const t = tabsList.find((x) => (x.url || '').includes(words[k] || k)) || tabsList.find((x) => /microsoftonline|account\.matrix|accounts\.google/.test(x.url));
+  if (t) { $('tabs').value = t.i; shot(); }
+}
+const shortUrl = (u) => { try { const x = new URL(u); return x.hostname.replace(/^www\./, '') + x.pathname.slice(0, 18); } catch (e) { return u || 'blank'; } };
+function shot() { const img = $('screen'); const n = new Image(); n.onload = () => { img.src = n.src; }; n.src = `/api/shot?tab=${$('tabs').value || 0}&token=${TOKEN}&t=${Date.now()}`; }
+async function input(b) { b.tab = Number($('tabs').value || 0); await api('input', b).catch(() => {}); setTimeout(shot, 500); }
+function tapScreen(e) { const r = e.target.getBoundingClientRect(); input({ type: 'click', x: (e.clientX - r.left) / r.width, y: (e.clientY - r.top) / r.height }); }
+function typeIt() { const t = $('typeBox').value; if (!t) return; $('typeBox').value = ''; input({ type: 'type', text: t }); }
+function goUrl() { const u = prompt('Open which address?', 'https://'); if (u) input({ type: 'goto', url: u }); }
+
+// ---------- alarms (the phone app rings them for real; Laudi calls too)
+for (let d = 0; d < 7; d++) { const b = document.createElement('button'); b.textContent = DAYS[d]; b.onclick = () => { b.classList.toggle('sel'); newDays = [...document.querySelectorAll('#aDays button')].map((x, i) => x.classList.contains('sel') ? i : -1).filter((i) => i >= 0); }; $('aDays').appendChild(b); }
+async function loadAlarms() {
+  const list = await api('alarms').catch(() => []);
+  if (NATIVE && NATIVE.scheduleAlarms) NATIVE.scheduleAlarms(JSON.stringify(list));
+  $('nativeBtns').style.display = NATIVE ? 'grid' : 'none';
+  $('alarmNote').textContent = NATIVE ? '✅ This phone will ring for these alarms, even when the app is closed.' : 'To make your phone ring, open this in the Laudi app on your phone.';
+  $('alarmList').innerHTML = list.length ? list.sort((a, b) => a.time.localeCompare(b.time)).map((a) => `
+    <div class="alarm ${a.enabled ? '' : 'off'}">
+      <span class="t">${a.time}</span>
+      <span class="l">${esc(a.label)}<br><small class="muted">${a.days && a.days.length ? a.days.map((d) => DAYS[d]).join(' ') : 'once'}${a.laudiCalls !== false ? ' · 📞 Laudi calls' : ''}</small></span>
+      <div class="tog ${a.enabled ? 'on' : ''}" onclick='toggleAlarm(${JSON.stringify(a)})'></div>
+      <button onclick="delAlarm('${a.id}')">🗑</button>
+    </div>`).join('') : '<span class="muted">No alarms yet.</span>';
+}
+async function syncAlarms() { if (NATIVE && NATIVE.scheduleAlarms) { const list = await api('alarms').catch(() => null); if (Array.isArray(list)) NATIVE.scheduleAlarms(JSON.stringify(list)); } }
+async function addAlarm() {
+  await api('alarms', { time: $('aTime').value, label: $('aLabel').value || 'Alarm', days: newDays, laudiCalls: $('aCall').classList.contains('on') });
+  $('aLabel').value = ''; document.querySelectorAll('#aDays button').forEach((b) => b.classList.remove('sel')); newDays = [];
+  toast('Alarm set ⏰'); loadAlarms();
+}
+async function toggleAlarm(a) { a.enabled = !a.enabled; await api('alarms', a); loadAlarms(); }
+async function delAlarm(id) { await api('alarms', { delete: id }); loadAlarms(); }
+
+// ---------- settings
+const FEATS = [['GROUPS', 'Group chats'], ['POSTS_PER_DAY', 'Posts TikToks'], ['DISCORD_ENABLED', 'Discord (chat + calls)'], ['ELEMENT_ENABLED', 'Element (calls)'], ['CALL_EVERY_MINUTES', 'Calls me every hour'], ['WATCH_ACCOUNTS', 'Watches WhatsApp / Gmail / Edunation']];
+let feats = {};
+async function loadSettings() {
+  const s = await api('setup').catch(() => ({}));
+  feats = { ...(s.features || {}) };
+  $('feats').innerHTML = FEATS.map(([k, n]) => `<div class="switch"><span>${n}</span><div class="tog ${feats[k] ? 'on' : ''}" onclick="feats['${k}']=!feats['${k}'];this.classList.toggle('on')"></div></div>`).join('');
+  for (const k of ['tiktokUser', 'elementUser', 'edunationUrl', 'hours']) $('e_' + k).value = s[k] || '';
+  for (const k of ['tiktokPass', 'elementPass', 'discord', 'groq', 'gemini']) $('t_' + k).textContent = s.set && s.set[k] ? 'saved ✓' : 'missing';
+}
+async function saveSettings() {
+  const b = { features: feats };
+  for (const k of ['tiktokUser', 'tiktokPass', 'elementUser', 'elementPass', 'discord', 'groq', 'gemini', 'edunationUrl', 'hours', 'pin']) { const v = $('e_' + k).value; if (v) b[k] = v; }
+  const r = await api('setup', b).catch((e) => ({ error: e.message }));
+  for (const k of ['tiktokPass', 'elementPass', 'discord', 'groq', 'gemini', 'pin']) $('e_' + k).value = '';
+  toast(r.ok ? 'Saved ✓ restarting Laudi' : r.error || 'Failed'); loadSettings();
+}
+const esc = (s) => String(s == null ? '' : s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+boot();
+</script>
+</body>
+</html>

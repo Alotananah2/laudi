@@ -36,12 +36,12 @@ async function findVideos(tab, query) {
   return collectCards(tab);
 }
 
-/** Videos from the Explore page (works even when search shows a captcha). kind: 'roblox' | 'funny' */
+/** Videos from the Explore page (works even when search shows a captcha). kind: 'gaming' | 'funny' */
 async function exploreVideos(tab, kind = 'funny') {
   await tab.goto('https://www.tiktok.com/explore', { waitUntil: 'domcontentloaded', timeout: 45_000 });
   await sleep(6000);
   if (await captchaShown(tab)) throw new Error('captcha');
-  const want = kind === 'roblox' ? /^(gaming|games?)$/i : /^(comedy|funny)$/i;
+  const want = kind === 'gaming' ? /^(gaming|games?)$/i : /^(comedy|funny)$/i;
   const picked = await tab
     .evaluate((src) => {
       const re = new RegExp(src, 'i');
@@ -82,7 +82,7 @@ async function collectCards(tab) {
 }
 
 const CAPTIONS = {
-  roblox: ['lmaooo roblox players are something else 💀', 'bro this is so you 😭', 'roblox moment', 'nah why is this so real', 'LMAO look', 'this one got me 💀'],
+  gaming: ['lmaooo gamers are something else 💀', 'bro this is so you 😭', 'gamer moment', 'nah why is this so real', 'LMAO look', 'this one got me 💀'],
   funny: ['lmaooo 😭', 'bro look at this', 'nah this killed me 💀', 'why did i laugh so hard at this', 'ok this is funny', '😭😭'],
 };
 const caption = (kind) => pick(CAPTIONS[kind] || CAPTIONS.funny);
@@ -91,6 +91,8 @@ const caption = (kind) => pick(CAPTIONS[kind] || CAPTIONS.funny);
 
 /** STREAMERS="tiktok:rararo, twitch:someone" → [{ platform, user }] */
 function streamers() {
+  return []; // streamer/live support removed
+  // eslint-disable-next-line no-unreachable
   return config.streamers
     .split(',')
     .map((s) => s.trim())

@@ -205,10 +205,9 @@ async function upload(tab, file, caption) {
 }
 
 const FALLBACK = [
-  ['when ur friend says *roblox* is easy 💀', '!then dies on the *first* obby 😭', 'tag that friend 👇'],
+  ['when ur friend says the game is *easy* 💀', '!then dies in the *first* level 😭', 'tag that friend 👇'],
   ['me: *one more* game', '!also me at *3am* 🥲', 'who else 🙋'],
-  ['*Rararo* live = 👑', 'everything else = 😐', '!go follow him rn 🔥'],
-  ['pov: ur an *AI* 🤖', 'and u still lose in *roblox*', '!skill issue 💀'],
+  ['pov: ur an *AI* 🤖', 'and u still lose every *game*', '!skill issue 💀'],
   ['rate my *dance* 🤖', '!beep boop 🕺', 'comment ur score 👇'],
 ];
 
@@ -221,7 +220,7 @@ async function idea(think, topic = '') {
           role: 'system',
           content:
             `You are ${config.assistantName}, an openly AI TikTok account (a funny robot). Make ONE short meme video idea for TikTok: ` +
-            'Roblox jokes, gamer life, school life, being a robot, or hyping the streamer Rararo. Teen-friendly, no swearing, nothing mean. ' +
+            'gamer life, school life, being a robot, memes. Teen-friendly, no swearing, nothing mean. ' +
             'Reply ONLY with JSON: {"lines":["3 or 4 short lines, max 9 words each, emojis ok, wrap 1-2 key words in *stars*, start the punchline with !"],"caption":"short caption + 3 hashtags"}',
         },
         {
@@ -239,7 +238,7 @@ async function idea(think, topic = '') {
     console.warn('[post] idea:', err.message.split('\n')[0]);
   }
   const lines = FALLBACK[Math.floor(Math.random() * FALLBACK.length)];
-  return { lines, caption: 'beep boop 🤖 #roblox #funny #fyp' };
+  return { lines, caption: 'beep boop 🤖 #ai #funny #fyp' };
 }
 
 const withAiTags = (caption) => (/#ai\b/i.test(caption) ? caption : `${caption} ${AI_TAGS}`).trim().slice(0, 2000);
