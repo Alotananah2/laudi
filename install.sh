@@ -85,7 +85,12 @@ rm -f "$HOME/.config/systemd/user/laudi.service" "$HOME/.config/systemd/user/lau
 sudo systemctl daemon-reload
 sudo systemctl enable --now laudi-dashboard.service
 sudo systemctl enable laudi.service
-ok "dashboard is running; Laudi starts after you finish setup in the dashboard"
+if grep -q '^DASHBOARD_PIN=.' local-settings.txt 2>/dev/null; then
+  sudo systemctl restart laudi.service
+  ok "dashboard + Laudi are running (settings were already filled in)"
+else
+  ok "dashboard is running; Laudi starts after you finish setup in the dashboard"
+fi
 
 step "4/6  Let your phone reach the dashboard"
 if command -v ufw >/dev/null && sudo ufw status | grep -q "Status: active"; then
