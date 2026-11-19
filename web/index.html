@@ -53,7 +53,7 @@
   .app b { flex:1; font-weight:600; font-size:14px; } .app small { color:var(--dim); }
   pre { margin:0; font:12px/1.4 ui-monospace,Menlo,Consolas,monospace; white-space:pre-wrap; word-break:break-word; color:#c7f9d4; max-height:55vh; overflow:auto; }
   nav { position:fixed; left:12px; right:12px; bottom:calc(env(safe-area-inset-bottom) + 12px); display:flex; justify-content:space-around; padding:8px; z-index:5; }
-  nav button { background:none; border:0; color:var(--dim); font-size:11px; padding:6px 8px; display:flex; flex-direction:column; align-items:center; gap:2px; }
+  nav button { background:none; border:0; color:var(--dim); font-size:11px; padding:6px 4px; display:flex; flex-direction:column; align-items:center; gap:2px; }
   nav button span { font-size:20px; } nav button.sel { color:#fff; }
   .embed nav { position:static; margin-bottom:12px; }
   .page { display:none; } .page.sel { display:block; }
@@ -73,6 +73,13 @@
   .center { min-height:70vh; display:flex; flex-direction:column; justify-content:center; text-align:center; }
   .big { font-size:54px; margin:0; } .hide { display:none !important; }
   .steps { display:flex; gap:6px; margin-bottom:12px; } .steps i { flex:1; height:4px; border-radius:2px; background:rgba(255,255,255,.15); } .steps i.sel { background:var(--blue); }
+  .rings { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; text-align:center; }
+  .ring { position:relative; width:100%; aspect-ratio:1; } .ring svg { width:100%; height:100%; transform:rotate(-90deg); }
+  .ring circle { fill:none; stroke-width:9; } .ring .bg { stroke:rgba(255,255,255,.12); } .ring .fg { stroke-linecap:round; transition:stroke-dashoffset .8s cubic-bezier(.2,.9,.3,1), stroke .4s; }
+  .ring b { position:absolute; inset:0; display:flex; align-items:center; justify-content:center; font-size:16px; }
+  .ring + small { color:var(--dim); font-size:12px; }
+  .line { display:flex; align-items:center; gap:10px; padding:8px 0; border-bottom:1px solid rgba(255,255,255,.07); font-size:14px; }
+  .line:last-child { border:0; } .line b { flex:1; font-weight:600; } .line small { color:var(--dim); }
   .tag { font-size:11px; padding:2px 8px; border-radius:10px; background:rgba(255,255,255,.12); }
 </style>
 </head>
@@ -163,6 +170,47 @@
     </div>
   </section>
 
+  <!-- MURDHI'S SERVER -->
+  <section class="page" id="p-server">
+    <h1>🖥️ Murdhi's Server</h1>
+    <div class="glass card">
+      <div class="rings" id="rings"></div>
+      <p class="muted" id="srvMeta" style="margin:10px 0 0"></p>
+    </div>
+    <div class="glass card">
+      <h2>Network</h2>
+      <div class="row" style="justify-content:space-between"><b id="netDown">↓ –</b><b id="netUp">↑ –</b><span class="muted" id="netPing"></span></div>
+      <svg id="spark" viewBox="0 0 300 60" preserveAspectRatio="none" style="width:100%;height:70px;margin-top:8px"></svg>
+    </div>
+    <div class="glass card">
+      <div class="switch" style="padding-top:0"><h2 style="margin:0">🛡️ Ad blocker</h2><div class="tog" id="adTog" onclick="adToggle()"></div></div>
+      <div id="adBody" class="muted">…</div>
+    </div>
+    <div class="glass card">
+      <h2>📶 Wi-Fi · Murdhi's server</h2>
+      <div id="wifi" class="muted">…</div>
+    </div>
+    <div class="glass card">
+      <h2>Apps</h2>
+      <div class="apps" id="srvApps"></div>
+    </div>
+    <div class="glass card">
+      <h2>Running</h2>
+      <div id="srvRun" class="muted">…</div>
+    </div>
+    <div class="glass card">
+      <h2>🔒 Private network (Tailscale)</h2>
+      <div id="tsList" class="muted">…</div>
+    </div>
+    <div class="glass card">
+      <h2>Buttons</h2>
+      <div class="grid2">
+        <button onclick="srvAct('restart-wifi', 'Restart the Wi-Fi? Everyone on it drops for a few seconds.')">📶 Restart Wi-Fi</button>
+        <button class="stop" onclick="srvAct('reboot', 'Restart the whole server? It takes ~2 minutes.')">♻️ Restart server</button>
+      </div>
+    </div>
+  </section>
+
   <!-- SCREEN -->
   <section class="page" id="p-screen">
     <h1>🖥️ Screen</h1>
@@ -229,6 +277,7 @@
 
   <nav class="glass">
     <button class="sel" data-p="home"><span>🏠</span>Home</button>
+    <button data-p="server"><span>🛰️</span>Server</button>
     <button data-p="screen"><span>🖥️</span>Screen</button>
     <button data-p="alarms"><span>⏰</span>Alarms</button>
     <button data-p="settings"><span>⚙️</span>Setup</button>
@@ -316,6 +365,8 @@ function go(p) {
   clearInterval(shotTimer);
   if (p === 'screen') { loadTabs(); shotTimer = setInterval(shot, 1500); }
   if (p === 'alarms') loadAlarms();
+  clearInterval(srvTimer);
+  if (p === 'server') { loadServer(); srvTimer = setInterval(loadServer, 3000); }
   if (p === 'settings') loadSettings();
 }
 
@@ -358,6 +409,42 @@ async function fixLogin(k) {
 }
 async function cmd(c) { const r = await api('cmd', { c }).catch(() => ({})); toast(r.msg || r.error || 'Done'); setTimeout(tick, 900); }
 async function say() { const t = $('say').value.trim(); if (!t) return; $('say').value = ''; const r = await api('cmd', { c: 'say', text: t }).catch(() => ({})); toast(r.msg || 'Sent'); }
+
+// ---------- Murdhi's Server
+let srvTimer = null, srv = {};
+const fmtRate = (b) => b > 1e6 ? (b / 1e6 * 8).toFixed(1) + ' Mbps' : b > 1e3 ? Math.round(b / 1e3 * 8) + ' kbps' : Math.round(b * 8) + ' bps';
+function ring(label, pct, text, warn = 70, bad = 85) {
+  const C = 2 * Math.PI * 40, v = pct == null ? 0 : Math.max(0, Math.min(100, pct));
+  const col = pct == null ? 'rgba(255,255,255,.2)' : v >= bad ? 'var(--red)' : v >= warn ? 'var(--amber)' : 'var(--green)';
+  return `<div><div class="ring"><svg viewBox="0 0 100 100"><circle class="bg" cx="50" cy="50" r="40"/><circle class="fg" cx="50" cy="50" r="40" stroke="${col}" stroke-dasharray="${C}" stroke-dashoffset="${C * (1 - v / 100)}"/></svg><b>${text}</b></div><small>${label}</small></div>`;
+}
+async function loadServer() {
+  let s;
+  try { s = await api('server'); } catch (e) { return; }
+  srv = s;
+  $('rings').innerHTML = ring('CPU', s.cpu, s.cpu == null ? '–' : s.cpu + '%') + ring('Temp', s.temp, s.temp == null ? '–' : s.temp + '°', 70, 85) +
+    ring('Memory', s.memory && s.memory.pct, s.memory ? s.memory.pct + '%' : '–', 80, 92) + ring('Storage', s.disk && s.disk.pct, s.disk ? s.disk.pct + '%' : '–', 80, 92);
+  $('srvMeta').textContent = `${s.host} · ${(s.ip || []).join(', ')} · up ${s.uptimeH}h${s.memory ? ` · ${s.memory.usedGb}/${s.memory.totalGb} GB RAM` : ''}${s.disk ? ` · ${s.disk.usedGb}/${s.disk.totalGb} GB disk` : ''}`;
+  $('netDown').textContent = '↓ ' + fmtRate(s.net.down); $('netUp').textContent = '↑ ' + fmtRate(s.net.up);
+  $('netPing').textContent = s.ping == null ? 'no internet?' : `ping ${s.ping} ms`;
+  const h = s.history || [], max = Math.max(1, ...h.map((x) => Math.max(x.down, x.up)));
+  const path = (k) => h.map((x, i) => `${i ? 'L' : 'M'}${(i / Math.max(1, h.length - 1)) * 300},${58 - (x[k] / max) * 54}`).join(' ');
+  $('spark').innerHTML = h.length > 1 ? `<path d="${path('down')}" fill="none" stroke="#7c8cff" stroke-width="2"/><path d="${path('up')}" fill="none" stroke="#34d399" stroke-width="2" opacity=".8"/>` : '';
+  const ad = s.adblock;
+  $('adTog').className = 'tog' + (ad && ad.on ? ' on' : '');
+  $('adBody').innerHTML = !ad ? "Can't reach AdGuard" : `<b style="font-size:26px;color:var(--text)">${(ad.blocked || 0).toLocaleString()}</b> blocked of ${(ad.queries || 0).toLocaleString()} (${ad.queries ? Math.round(ad.blocked / ad.queries * 100) : 0}%)` +
+    (ad.top && ad.top.length ? '<div style="margin-top:8px">' + ad.top.map(([d, n]) => `<div class="line"><b>${esc(d)}</b><small>${n}</small></div>`).join('') + '</div>' : '');
+  $('wifi').innerHTML = s.wifi && s.wifi.length ? s.wifi.map((d) => `<div class="line"><span class="dot on"></span><b>${esc(d.name || d.ip || d.mac)}</b><small>${d.ip ? esc(d.ip) + ' · ' : ''}${d.signal != null ? d.signal + ' dBm' : ''}${d.minutes != null ? ' · ' + d.minutes + ' min' : ''}</small></div>`).join('') : 'No one connected right now.';
+  const host = location.hostname;
+  $('srvApps').innerHTML = (s.apps || []).map((a) => `<div class="app" onclick="openApp(${a.port})"><span class="dot ${a.up ? 'on' : 'off'}"></span><b>${esc(a.name)}</b><small>:${a.port}</small></div>`).join('');
+  const run = [...(s.services || []).map((x) => ({ name: x.name, up: x.state === 'active', note: x.state })), ...(s.containers || []).map((c) => ({ name: c.name, up: c.up, note: c.status, docker: true }))];
+  $('srvRun').innerHTML = run.length ? run.map((x) => `<div class="line"><span class="dot ${x.up ? 'on' : 'off'}"></span><b>${esc(x.name)}</b><small>${esc(x.note || '')}</small>${x.docker ? `<button style="padding:6px 10px" onclick="srvAct('restart-container','Restart ${esc(x.name)}?','${esc(x.name)}')">↻</button>` : ''}</div>`).join('') : 'Nothing found.';
+  const ts = s.tailscale;
+  $('tsList').innerHTML = !ts ? 'Tailscale is not set up.' : `<div class="muted" style="margin-bottom:6px">This server: ${esc(ts.me || '?')}</div>` + ts.peers.map((p) => `<div class="line"><span class="dot ${p.online ? 'on' : 'off'}"></span><b>${esc(p.name)}</b><small>${esc(p.ip || '')} · ${esc(p.os || '')}</small></div>`).join('');
+}
+function openApp(port) { const u = `http://${location.hostname}:${port}/`; if (NATIVE) location.href = u; else window.open(u, '_blank'); }
+async function adToggle() { const on = !(srv.adblock && srv.adblock.on); const r = await api('server/action', { a: on ? 'adblock-on' : 'adblock-off' }).catch(() => ({})); toast(r.msg || 'Done'); loadServer(); }
+async function srvAct(a, ask, name) { if (ask && !confirm(ask)) return; const r = await api('server/action', { a, name }).catch(() => ({})); toast(r.msg || 'Done'); setTimeout(loadServer, 1500); }
 
 // ---------- screen
 let tabsList = [];

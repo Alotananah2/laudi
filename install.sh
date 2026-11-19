@@ -18,7 +18,7 @@ if command -v apt-get >/dev/null; then PM=apt; elif command -v dnf >/dev/null; t
 step "System packages (virtual screen, Node.js)… type your password if asked"
 if [ $PM = apt ]; then
   sudo apt-get update -y
-  sudo apt-get install -y git curl ca-certificates xvfb xauth fonts-noto-color-emoji
+  sudo apt-get install -y git curl ca-certificates xvfb xauth fonts-noto-color-emoji iw iputils-ping
   NODE_MAJOR=$(node -v 2>/dev/null | sed 's/v\([0-9]*\).*/\1/'); NODE_MAJOR=${NODE_MAJOR:-0}
   if [ "$NODE_MAJOR" -lt 20 ]; then
     curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
@@ -77,7 +77,7 @@ WantedBy=multi-user.target
 UNITEOF
 # let the dashboard (running as you) start/stop Laudi without a password
 SC="$(command -v systemctl)"
-echo "$ME ALL=(root) NOPASSWD: $SC start laudi.service, $SC stop laudi.service, $SC restart laudi.service" | sudo tee /etc/sudoers.d/laudi >/dev/null
+echo "$ME ALL=(root) NOPASSWD: $SC start laudi.service, $SC stop laudi.service, $SC restart laudi.service, $SC restart hostapd.service, $SC restart NetworkManager.service, $SC reboot" | sudo tee /etc/sudoers.d/laudi >/dev/null
 sudo chmod 440 /etc/sudoers.d/laudi
 sudo visudo -cf /etc/sudoers.d/laudi >/dev/null || { sudo rm -f /etc/sudoers.d/laudi; warn "couldn't set up the start/stop permission"; }
 # remove the old per-user services from a previous try (if any)
