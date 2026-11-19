@@ -31,7 +31,7 @@ import android.widget.Toast
 import java.net.HttpURLConnection
 import java.net.URL
 
-/** The Laudi app: the dashboard from the Ubuntu server + real phone alarms. */
+/** The Laudi app: the dashboard from Laudi's Windows PC + real phone alarms. */
 class MainActivity : Activity() {
     private lateinit var web: WebView
     private lateinit var cover: TextView
@@ -88,9 +88,9 @@ class MainActivity : Activity() {
     private fun offline() {
         if (isFinishing) return
         cover.visibility = View.VISIBLE
-        cover.text = "Can't reach Laudi 😴\n\n${Store.server(this)}\n\nIs Laudi installed and the server on?\nAway from home: is Tailscale on?\n\n(hold here to change the address)"
+        cover.text = "Can't reach Laudi 😴\n\n${Store.server(this)}\n\nIs Laudi's PC on and Laudi installed?\nAway from home: is Tailscale on?\n\n(hold here to change the address)"
         AlertDialog.Builder(this).setTitle("Can't reach Laudi")
-            .setMessage("${Store.server(this)}\n\nCheck the server is on and the address is the one install.sh showed. Away from home, turn on Tailscale.")
+            .setMessage("${Store.server(this)}\n\nCheck Laudi's PC is on and the address is the one install.bat showed. Away from home, turn on Tailscale.")
             .setPositiveButton("Try again") { _, _ -> load() }
             .setNeutralButton("Change address") { _, _ -> askServer() }
             .show()
@@ -102,7 +102,7 @@ class MainActivity : Activity() {
             setText(Store.server(this@MainActivity).ifEmpty { "http://" })
         }
         AlertDialog.Builder(this).setTitle("Laudi's address")
-            .setMessage("The address the installer showed, like http://100.x.x.x:8787")
+            .setMessage("The address install.bat showed on the PC, like http://192.168.x.x:8787 (or http://100.x.x.x:8787 with Tailscale)")
             .setView(box)
             .setCancelable(false)
             .setPositiveButton("Connect") { _, _ ->

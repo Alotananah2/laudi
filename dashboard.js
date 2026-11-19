@@ -14,6 +14,7 @@ const SETTINGS = path.join(ROOT, 'local-settings.txt');
 const WEB = path.join(ROOT, 'web');
 const PORT = Number(process.env.DASHBOARD_PORT || 8787);
 const BOT = `http://127.0.0.1:${process.env.CONTROL_PORT || 8788}`;
+const WIN = process.platform === 'win32';
 fs.mkdirSync(DATA, { recursive: true });
 
 // ------------------------------------------------------------------ small helpers
@@ -83,9 +84,11 @@ const fails = new Map(); // ip -> [count, until]
 
 // ------------------------------------------------------------------ Laudi the service
 
-// Laudi is a system service (laudi.service); start/stop go through a sudo rule install.sh adds.
+// Linux: Laudi is a system service (laudi.service); start/stop go through a sudo rule install.sh adds.
+// Windows: no systemd - run-laudi.bat keeps him running in a loop until data/stop.flag exists.
 const sysctl = (args) =>
   new Promise((res) => {
+    if (WIN) return res({ ok: false, out: 'windows' });
     const [cmd, ...rest] = args[0] === 'is-active' ? ['systemctl', ...args] : ['sudo', '-n', 'systemctl', ...args];
     execFile(cmd, rest, { timeout: 15_000 }, (err, so, se) => res({ ok: !err, out: String(so || se || '').trim() }));
   });
@@ -108,12 +111,22 @@ async function botStatus() {
     const r = await botCall('/status', { timeout: 2500 });
     if (r.ok) live = await r.json();
   } catch {}
-  const service = /^(active|inactive|failed|activating|deactivating)$/.test(svc.out) ? svc.out : 'no systemd';
+  const service = WIN ? (live ? 'active' : 'inactive') : /^(active|inactive|failed|activating|deactivating)$/.test(svc.out) ? svc.out : 'no systemd';
   return { service, running: Boolean(live) || service === 'active', ...(live || {}) };
 }
 
 async function startBot() {
   try { fs.unlinkSync(path.join(DATA, 'stop.flag')); } catch {}
+  if (WIN) {
+    try {
+      const r = await botCall('/status', { timeout: 2500 });
+      if (r.ok) return 'Laudi is already running';
+    } catch {}
+    spawn('cmd.exe', ['/c start "Laudi" /min run-laudi.bat'], {
+      cwd: ROOT, detached: true, stdio: 'ignore', windowsVerbatimArguments: true,
+    }).unref();
+    return 'Starting Laudi… (~20 s)';
+  }
   const r = await sysctl(['start', 'laudi.service']);
   if (r.ok) return 'Starting Laudi… (~20 s)';
   // no systemd user service (dev setup): run start.sh ourselves

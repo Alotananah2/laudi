@@ -20,7 +20,7 @@ import java.net.URL
 
 /**
  * You log in to TikTok yourself here (the real tiktok.com, Laudi isn't touching it).
- * Then press Ctrl+R (or the button) and your login is handed to Laudi on the server.
+ * Then press Ctrl+R (or the button) and your login is handed to Laudi on his PC.
  */
 class LoginActivity : Activity() {
     private lateinit var web: WebView
