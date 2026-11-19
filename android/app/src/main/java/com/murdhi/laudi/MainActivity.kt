@@ -25,7 +25,7 @@ import android.widget.Toast
 import java.net.HttpURLConnection
 import java.net.URL
 
-/** The Laudi app: the dashboard from the Fedora computer + real phone alarms. */
+/** The Laudi app: the dashboard from the Ubuntu server + real phone alarms. */
 class MainActivity : Activity() {
     private lateinit var web: WebView
 
@@ -60,7 +60,7 @@ class MainActivity : Activity() {
     private fun offline() {
         web.loadData(
             "<body style='background:#0b0b14;color:#fff;font-family:sans-serif;text-align:center;padding-top:30vh'>" +
-                "<h2>Can't reach Laudi 😴</h2><p style='color:#aaa'>Is the Fedora computer on, and is Tailscale on here?</p></body>",
+                "<h2>Can't reach Laudi 😴</h2><p style='color:#aaa'>Is the server on? Away from home: is Tailscale on here?</p></body>",
             "text/html", "utf-8",
         )
         AlertDialog.Builder(this).setTitle("Can't reach Laudi")

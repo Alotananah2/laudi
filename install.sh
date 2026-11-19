@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ======================================================================
-#  Laudi 2 installer for Fedora (works with no screen / over SSH)
+#  Laudi 2 installer for Ubuntu Server (also Fedora) - no screen needed, works over SSH
 #  Run inside the laudi folder:   bash install.sh
 #  Then open the dashboard on your phone and finish the setup there.
 # ======================================================================
@@ -13,16 +13,27 @@ ok() { echo -e "${G}✔ $*${N}"; }
 warn() { echo -e "${Y}! $*${N}"; }
 [ "$(id -u)" -eq 0 ] && { echo -e "${R}Run it as your normal user (not sudo): bash install.sh${N}"; exit 1; }
 [ -f src/tiktok.js ] || { echo -e "${R}Run this inside the laudi folder.${N}"; exit 1; }
-command -v dnf >/dev/null || { echo -e "${R}This installer is for Fedora (dnf).${N}"; exit 1; }
+if command -v apt-get >/dev/null; then PM=apt; elif command -v dnf >/dev/null; then PM=dnf; else echo -e "${R}Needs Ubuntu (apt) or Fedora (dnf).${N}"; exit 1; fi
 
-step "1/6  System packages (Chromium, virtual screen, Node.js)… type your password if asked"
-sudo dnf install -y git chromium xorg-x11-server-Xvfb xorg-x11-xauth nodejs npm google-noto-color-emoji-fonts curl
-NODE_MAJOR=$(node -v | sed 's/v\([0-9]*\).*/\1/')
-[ "$NODE_MAJOR" -ge 20 ] || { sudo dnf install -y nodejs22 nodejs22-npm || true; }
-ok "Node $(node -v), $(chromium-browser --version 2>/dev/null || chromium --version 2>/dev/null)"
+step "1/6  System packages (virtual screen, Node.js)… type your password if asked"
+if [ $PM = apt ]; then
+  sudo apt-get update -y
+  sudo apt-get install -y git curl ca-certificates xvfb xauth fonts-noto-color-emoji
+  NODE_MAJOR=$(node -v 2>/dev/null | sed 's/v\([0-9]*\).*/\1/'); NODE_MAJOR=${NODE_MAJOR:-0}
+  if [ "$NODE_MAJOR" -lt 20 ]; then
+    curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+    sudo apt-get install -y nodejs
+  fi
+else
+  sudo dnf install -y git curl xorg-x11-server-Xvfb xorg-x11-xauth nodejs npm google-noto-color-emoji-fonts
+fi
+ok "Node $(node -v)"
 
-step "2/6  Laudi's packages"
+step "2/6  Laudi's packages + his own Chromium (a few minutes)"
 npm install --omit=dev --legacy-peer-deps --no-audit --no-fund
+# Ubuntu's chromium is a snap that doesn't work well as a background service, so use Playwright's own Chromium
+sudo -E env "PATH=$PATH" npx --yes playwright-core install-deps chromium || warn "couldn't install Chromium's system libraries"
+npx --yes playwright-core install chromium
 mkdir -p data && chmod 700 data
 [ -f local-settings.txt ] && { sed -i 's/\r$//' local-settings.txt; chmod 600 local-settings.txt; }
 ok "installed"
@@ -66,17 +77,19 @@ systemctl --user enable laudi.service
 ok "Laudi starts by himself after you finish setup in the dashboard"
 
 step "4/6  Let your phone reach the dashboard"
-if command -v firewall-cmd >/dev/null; then
+if command -v ufw >/dev/null && sudo ufw status | grep -q "Status: active"; then
+  sudo ufw allow 8787/tcp >/dev/null && ok "port 8787 open (ufw)"
+elif command -v firewall-cmd >/dev/null; then
   sudo firewall-cmd --permanent --add-port=8787/tcp >/dev/null && sudo firewall-cmd --reload >/dev/null && ok "port 8787 open"
+else
+  ok "no firewall to change"
 fi
 
 step "5/6  Use the app from anywhere (Tailscale, free)"
 read -rp "Set up Tailscale so the phone app works outside your house too? [Y/n] " ts
 if [ "${ts,,}" != "n" ]; then
   if ! command -v tailscale >/dev/null; then
-    sudo dnf config-manager addrepo --from-repofile=https://pkgs.tailscale.com/stable/fedora/tailscale.repo 2>/dev/null \
-      || sudo dnf config-manager --add-repo https://pkgs.tailscale.com/stable/fedora/tailscale.repo
-    sudo dnf install -y tailscale
+    curl -fsSL https://tailscale.com/install.sh | sh
   fi
   sudo systemctl enable --now tailscaled
   echo "A login link shows up next - open it and sign in (Google is fine). Then install Tailscale on your phone with the same account."
@@ -87,7 +100,8 @@ step "6/6  Updates from GitHub ($REPO)"
 if [ ! -d .git ]; then
   read -rp "Link to github.com/$REPO so '!update' works? [Y/n] " gl
   if [ "${gl,,}" != "n" ]; then
-    command -v gh >/dev/null || sudo dnf install -y gh
+    command -v gh >/dev/null || { [ $PM = apt ] && sudo apt-get install -y gh || sudo dnf install -y gh; }
+    # no browser on a server: it shows a code, type it at github.com/login/device on your phone
     gh auth status >/dev/null 2>&1 || gh auth login --hostname github.com --git-protocol https --web
     gh auth setup-git
     git init -q && git remote add origin "https://github.com/$REPO.git"
@@ -99,7 +113,7 @@ LAN=$(hostname -I | awk '{print $1}')
 TSIP=$(tailscale ip -4 2>/dev/null | head -1 || true)
 echo -e "\n${G}${B}Done! 🎉${N}"
 echo -e "Open the dashboard on your phone (between 8 PM and 10 AM) and do the setup:"
-echo -e "   at home:   ${B}http://$LAN:8787${N}"
+echo -e "   at home:   ${B}http://$LAN:8787${N}   (or on the \"Murdhi's server\" Wi-Fi)"
 [ -n "$TSIP" ] && echo -e "   anywhere:  ${B}http://$TSIP:8787${N}   (phone needs Tailscale on)"
 echo -e "The phone app: download Laudi.apk from github.com/$REPO/releases (tag 'app') and type that address."
 echo -e "Stop Laudi on the Windows PC so two Laudis don't fight: DM him !stop or press Stop in Laudi Control."

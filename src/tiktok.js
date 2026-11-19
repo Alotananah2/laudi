@@ -62,6 +62,19 @@ let warnedNoChat = false;
 const ON_LINUX = process.platform === 'linux';
 const STARTED = Date.now();
 
+function head(file) {
+  // first bytes of a file (Ubuntu's /usr/bin/chromium-browser is just a script that opens the snap)
+  try {
+    const fd = fs.openSync(file, 'r');
+    const buf = Buffer.alloc(400);
+    fs.readSync(fd, buf, 0, 400, 0);
+    fs.closeSync(fd);
+    return buf.toString('latin1');
+  } catch {
+    return '';
+  }
+}
+
 async function launch() {
   // never makes sound; calls get a virtual mic, so allow media without prompts
   const args = ['--start-maximized', '--mute-audio', '--autoplay-policy=no-user-gesture-required', '--use-fake-ui-for-media-stream'];
@@ -69,8 +82,10 @@ async function launch() {
   if (ON_LINUX) {
     // Fedora (no screen): system Chromium inside a virtual screen (xvfb), go easy on RAM
     args.push('--disable-dev-shm-usage', '--renderer-process-limit=6', '--disable-features=Translate,MediaRouter', '--password-store=basic');
+    // CHROME_PATH, a real (non-snap) system Chromium, or Playwright's own Chromium (what install.sh sets up on Ubuntu)
     for (const exe of [process.env.CHROME_PATH, '/usr/bin/chromium', '/usr/bin/chromium-browser'].filter(Boolean))
-      if (fs.existsSync(exe)) tries.push({ executablePath: exe, label: 'Chromium' });
+      if (fs.existsSync(exe) && !/snap/.test(fs.realpathSync(exe)) && !head(exe).includes('snap')) tries.push({ executablePath: exe, label: 'Chromium' });
+    tries.push({ label: "Playwright's Chromium" });
   } else {
     for (const c of [config.browser, 'msedge', 'chrome'].filter((c, i, a) => a.indexOf(c) === i)) tries.push({ channel: c, label: c === 'msedge' ? 'Microsoft Edge' : 'Chrome' });
   }
@@ -88,7 +103,7 @@ async function launch() {
       console.warn(`[browser] ${t.label}: ${err.message.split('\n')[0]}`);
     }
   }
-  if (!ctx) throw new Error(ON_LINUX ? 'Could not open Chromium. Run: sudo dnf install chromium' : 'Could not open Edge or Chrome. Install Google Chrome and try again.');
+  if (!ctx) throw new Error(ON_LINUX ? 'Could not open Chromium. Run: npx playwright-core install --with-deps chromium' : 'Could not open Edge or Chrome. Install Google Chrome and try again.');
   page = ctx.pages()[0] || (await ctx.newPage());
   ctx.on('close', () => {
     console.warn('Browser closed — restarting myself…');
