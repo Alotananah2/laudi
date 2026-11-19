@@ -83,8 +83,12 @@ const fails = new Map(); // ip -> [count, until]
 
 // ------------------------------------------------------------------ Laudi the service
 
+// Laudi is a system service (laudi.service); start/stop go through a sudo rule install.sh adds.
 const sysctl = (args) =>
-  new Promise((res) => execFile('systemctl', ['--user', ...args], { timeout: 15_000 }, (err, so, se) => res({ ok: !err, out: String(so || se || '').trim() })));
+  new Promise((res) => {
+    const [cmd, ...rest] = args[0] === 'is-active' ? ['systemctl', ...args] : ['sudo', '-n', 'systemctl', ...args];
+    execFile(cmd, rest, { timeout: 15_000 }, (err, so, se) => res({ ok: !err, out: String(so || se || '').trim() }));
+  });
 
 async function botCall(p, opts = {}) {
   const ctrl = new AbortController();

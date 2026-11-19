@@ -38,43 +38,54 @@ mkdir -p data && chmod 700 data
 [ -f local-settings.txt ] && { sed -i 's/\r$//' local-settings.txt; chmod 600 local-settings.txt; }
 ok "installed"
 
-step "3/6  Run Laudi + the dashboard in the background (also after reboots, no login needed)"
-UNIT="$HOME/.config/systemd/user"; mkdir -p "$UNIT"
+step "3/6  Run Laudi + the dashboard in the background (also after reboots)"
 NODE_BIN="$(command -v node)"
-cat > "$UNIT/laudi-dashboard.service" <<UNITEOF
+ME="$(id -un)"
+sudo tee /etc/systemd/system/laudi-dashboard.service >/dev/null <<UNITEOF
 [Unit]
 Description=Laudi dashboard (phone app + alarms)
 After=network-online.target
+Wants=network-online.target
 
 [Service]
+User=$ME
 WorkingDirectory=$DIR
+Environment=HOME=$HOME
 ExecStart=$NODE_BIN $DIR/dashboard.js
 Restart=always
 RestartSec=5
 
 [Install]
-WantedBy=default.target
+WantedBy=multi-user.target
 UNITEOF
-cat > "$UNIT/laudi.service" <<UNITEOF
+sudo tee /etc/systemd/system/laudi.service >/dev/null <<UNITEOF
 [Unit]
 Description=Laudi (TikTok friend bot, no screen)
 After=network-online.target laudi-dashboard.service
+Wants=network-online.target
 
 [Service]
+User=$ME
 WorkingDirectory=$DIR
+Environment=HOME=$HOME
 ExecStart=/usr/bin/xvfb-run -a -s "-screen 0 1366x900x24" $NODE_BIN $DIR/src/tiktok.js
 Restart=always
 RestartSec=10
-Environment=NODE_ENV=production
 
 [Install]
-WantedBy=default.target
+WantedBy=multi-user.target
 UNITEOF
-sudo loginctl enable-linger "$USER"
-systemctl --user daemon-reload
-systemctl --user enable --now laudi-dashboard.service
-systemctl --user enable laudi.service
-ok "Laudi starts by himself after you finish setup in the dashboard"
+# let the dashboard (running as you) start/stop Laudi without a password
+SC="$(command -v systemctl)"
+echo "$ME ALL=(root) NOPASSWD: $SC start laudi.service, $SC stop laudi.service, $SC restart laudi.service" | sudo tee /etc/sudoers.d/laudi >/dev/null
+sudo chmod 440 /etc/sudoers.d/laudi
+sudo visudo -cf /etc/sudoers.d/laudi >/dev/null || { sudo rm -f /etc/sudoers.d/laudi; warn "couldn't set up the start/stop permission"; }
+# remove the old per-user services from a previous try (if any)
+rm -f "$HOME/.config/systemd/user/laudi.service" "$HOME/.config/systemd/user/laudi-dashboard.service"
+sudo systemctl daemon-reload
+sudo systemctl enable --now laudi-dashboard.service
+sudo systemctl enable laudi.service
+ok "dashboard is running; Laudi starts after you finish setup in the dashboard"
 
 step "4/6  Let your phone reach the dashboard"
 if command -v ufw >/dev/null && sudo ufw status | grep -q "Status: active"; then
@@ -112,6 +123,7 @@ fi
 LAN=$(hostname -I | awk '{print $1}')
 TSIP=$(tailscale ip -4 2>/dev/null | head -1 || true)
 echo -e "\n${G}${B}Done! 🎉${N}"
+echo -e "Check: ${B}systemctl status laudi-dashboard${N}   Logs: ${B}journalctl -u laudi -f${N}"
 echo -e "Open the dashboard on your phone (between 8 PM and 10 AM) and do the setup:"
 echo -e "   at home:   ${B}http://$LAN:8787${N}   (or on the \"Murdhi's server\" Wi-Fi)"
 [ -n "$TSIP" ] && echo -e "   anywhere:  ${B}http://$TSIP:8787${N}   (phone needs Tailscale on)"

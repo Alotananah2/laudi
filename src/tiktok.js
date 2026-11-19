@@ -997,7 +997,7 @@ async function main() {
         console.log('Stopping…');
         if (process.env.INVOCATION_ID) {
           // running as a systemd service: ask systemd to stop us (otherwise it would restart us)
-          require('child_process').spawn('systemctl', ['--user', 'stop', 'laudi.service'], { detached: true, stdio: 'ignore' }).unref();
+          require('child_process').spawn('sudo', ['-n', 'systemctl', 'stop', 'laudi.service'], { detached: true, stdio: 'ignore' }).unref();
         }
         ctx.close().catch(() => {}).finally(() => process.exit(0));
         setTimeout(() => process.exit(0), 6000);

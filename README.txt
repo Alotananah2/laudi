@@ -17,4 +17,4 @@ PHONE APP  github.com/Alotananah2/laudi/releases (tag "app") -> Laudi.apk
 
 UPDATES  DM Laudi !update (or Update button). Phone app rebuilds itself on GitHub.
 OFF FOR GOOD  Roblox playing and Rararo support are removed.
-COMMANDS  systemctl --user status laudi | journalctl --user -u laudi -f
+COMMANDS  systemctl status laudi laudi-dashboard | journalctl -u laudi -f
