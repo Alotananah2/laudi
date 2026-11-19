@@ -20,7 +20,13 @@ import android.webkit.WebResourceError
 import android.webkit.WebResourceRequest
 import android.webkit.WebView
 import android.webkit.WebViewClient
+import android.os.Handler
+import android.os.Looper
+import android.view.Gravity
+import android.view.View
 import android.widget.EditText
+import android.widget.FrameLayout
+import android.widget.TextView
 import android.widget.Toast
 import java.net.HttpURLConnection
 import java.net.URL
@@ -28,6 +34,10 @@ import java.net.URL
 /** The Laudi app: the dashboard from the Ubuntu server + real phone alarms. */
 class MainActivity : Activity() {
     private lateinit var web: WebView
+    private lateinit var cover: TextView
+    private val handler = Handler(Looper.getMainLooper())
+    private var loaded = false
+    private val timeout = Runnable { if (!loaded) { web.stopLoading(); offline() } }
 
     @SuppressLint("SetJavaScriptEnabled")
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -41,12 +51,23 @@ class MainActivity : Activity() {
             addJavascriptInterface(Bridge(this@MainActivity), "LaudiApp")
             webViewClient = object : WebViewClient() {
                 override fun onReceivedError(view: WebView, req: WebResourceRequest, err: WebResourceError) {
-                    if (req.isForMainFrame) runOnUiThread { offline() }
+                    if (req.isForMainFrame) runOnUiThread { loaded = true; offline() }
+                }
+                override fun onPageFinished(view: WebView, url: String) {
+                    if (url.startsWith("http")) { loaded = true; handler.removeCallbacks(timeout); cover.visibility = View.GONE }
                 }
             }
         }
-        setContentView(web)
+        // shown while connecting, so it's never just a blank screen
+        cover = TextView(this).apply {
+            setBackgroundColor(Color.parseColor("#0B0B14")); setTextColor(Color.WHITE); textSize = 18f
+            gravity = Gravity.CENTER; setPadding(60, 0, 60, 0)
+            setOnLongClickListener { askServer(); true }
+        }
+        setContentView(FrameLayout(this).apply { addView(web); addView(cover) })
         askPermissions()
+        cover.text = "Tap here to type Laudi's address"
+        cover.setOnClickListener { if (Store.server(this).isEmpty() || !loaded) askServer() }
         if (Store.server(this).isEmpty()) askServer() else load()
     }
 
@@ -55,16 +76,21 @@ class MainActivity : Activity() {
         syncAlarms() // keeps phone alarms in sync even when the dashboard is closed (8pm-10am only)
     }
 
-    private fun load() = web.loadUrl(Store.server(this) + "/")
+    private fun load() {
+        loaded = false
+        cover.text = "Connecting to Laudi…\n\n${Store.server(this)}\n\n(hold here to change the address)"
+        cover.visibility = View.VISIBLE
+        handler.removeCallbacks(timeout)
+        handler.postDelayed(timeout, 12_000)
+        web.loadUrl(Store.server(this) + "/")
+    }
 
     private fun offline() {
-        web.loadData(
-            "<body style='background:#0b0b14;color:#fff;font-family:sans-serif;text-align:center;padding-top:30vh'>" +
-                "<h2>Can't reach Laudi 😴</h2><p style='color:#aaa'>Is the server on? Away from home: is Tailscale on here?</p></body>",
-            "text/html", "utf-8",
-        )
+        if (isFinishing) return
+        cover.visibility = View.VISIBLE
+        cover.text = "Can't reach Laudi 😴\n\n${Store.server(this)}\n\nIs Laudi installed and the server on?\nAway from home: is Tailscale on?\n\n(hold here to change the address)"
         AlertDialog.Builder(this).setTitle("Can't reach Laudi")
-            .setMessage(Store.server(this))
+            .setMessage("${Store.server(this)}\n\nCheck the server is on and the address is the one install.sh showed. Away from home, turn on Tailscale.")
             .setPositiveButton("Try again") { _, _ -> load() }
             .setNeutralButton("Change address") { _, _ -> askServer() }
             .show()
