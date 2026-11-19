@@ -216,7 +216,7 @@ function saveSetup(b) {
     ownerName: 'OWNER_NAME', ownerTiktok: 'OWNER_TIKTOK', ownerTiktokName: 'OWNER_TIKTOK_NAME', discordOwner: 'DISCORD_OWNER',
     elementOwner: 'ELEMENT_OWNER', assistantName: 'ASSISTANT_NAME', timezone: 'TIMEZONE', edunationUrl: 'EDUNATION_URL',
   };
-  for (const [k, env] of Object.entries(map)) if (typeof b[k] === 'string') p[env] = b[k].trim();
+  for (const [k, env] of Object.entries(map)) if (typeof b[k] === 'string' && b[k].trim()) p[env] = b[k].trim();
   if (typeof b.hours === 'string' && /^(always|\d{1,2}-\d{1,2})$/i.test(b.hours.trim())) p.DASHBOARD_HOURS = b.hours.trim();
   if (b.groq) p.GROQ_API_KEY = String(b.groq).trim();
   if (b.gemini) p.GEMINI_API_KEY = String(b.gemini).trim();
@@ -241,9 +241,9 @@ function saveSetup(b) {
   // passwords: separate owner-only file
   let sec = {};
   try { sec = JSON.parse(fs.readFileSync(path.join(DATA, 'secrets.json'), 'utf8')); } catch {}
-  if (typeof b.tiktokUser === 'string') sec.tiktokUser = b.tiktokUser.trim();
+  if (typeof b.tiktokUser === 'string' && b.tiktokUser.trim()) sec.tiktokUser = b.tiktokUser.trim();
   if (b.tiktokPass) sec.tiktokPass = String(b.tiktokPass);
-  if (typeof b.elementUser === 'string') sec.elementUser = b.elementUser.trim();
+  if (typeof b.elementUser === 'string' && b.elementUser.trim()) sec.elementUser = b.elementUser.trim();
   if (b.elementPass) sec.elementPass = String(b.elementPass);
   writeJson('secrets.json', sec, 0o600);
   try { fs.chmodSync(path.join(DATA, 'secrets.json'), 0o600); } catch {}
