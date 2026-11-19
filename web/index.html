@@ -332,10 +332,15 @@ async function tick() {
     const sub = !on ? 'Laudi off' : v ? (typeof v === 'string' ? v : 'logged in') : v === null || v === undefined ? (k === 'discord' ? 'no token' : 'not open') : 'tap to log in';
     return `<div class="app" onclick="fixLogin('${k}')"><span class="dot ${st}"></span><b>${n}</b><small>${esc(sub)}</small></div>`;
   }).join('');
-  if (on && s.tiktok === false && !tick.sentToLogin) { tick.sentToLogin = true; toast('Log Laudi into TikTok here 👇'); go('screen'); setTimeout(() => selectTab('tiktok'), 900); }
+  if (on && s.tiktok === false && !tick.sentToLogin) {
+    tick.sentToLogin = true;
+    if (NATIVE && NATIVE.tiktokLogin) { toast('Log in to TikTok, then press Ctrl+R / Save'); NATIVE.tiktokLogin(); }
+    else { toast('Log Laudi into TikTok here 👇'); go('screen'); setTimeout(() => selectTab('tiktok'), 900); }
+  }
   if (page === 'settings') { const L = $('log'); const end = L.scrollTop + L.clientHeight > L.scrollHeight - 30; L.textContent = s.log || ''; if (end) L.scrollTop = L.scrollHeight; }
 }
 async function fixLogin(k) {
+  if (k === 'tiktok' && NATIVE && NATIVE.tiktokLogin) return NATIVE.tiktokLogin();
   if (k === 'tiktok' || k === 'element') {
     const r = await api('autologin', { site: k }).catch(() => ({}));
     toast(r.msg || r.error || 'Trying…');

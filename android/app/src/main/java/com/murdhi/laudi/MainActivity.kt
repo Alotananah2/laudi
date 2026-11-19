@@ -155,6 +155,7 @@ class MainActivity : Activity() {
         @JavascriptInterface fun saveToken(t: String) = Store.setToken(a, t)
         @JavascriptInterface fun scheduleAlarms(json: String) = Alarms.schedule(a, json)
         @JavascriptInterface fun changeServer() = a.runOnUiThread { a.askServer() }
+        @JavascriptInterface fun tiktokLogin() = a.runOnUiThread { a.startActivity(Intent(a, LoginActivity::class.java)) }
         @JavascriptInterface fun testAlarm() = AlarmReceiver.ring(a, "Test alarm")
         @JavascriptInterface fun toast(t: String) = a.runOnUiThread { Toast.makeText(a, t, Toast.LENGTH_SHORT).show() }
     }

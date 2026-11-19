@@ -381,6 +381,11 @@ http
         if (!r || !r.ok) return send(503, 'text/plain', 'Laudi is not running');
         return send(200, 'image/jpeg', Buffer.from(await r.arrayBuffer()));
       }
+      if (u.pathname === '/api/session' && req.method === 'POST') {
+        const b = await readBody(req);
+        const r = await botCall('/cookies', { method: 'POST', body: JSON.stringify(b), timeout: 30_000 }).catch(() => null);
+        return r ? json(await r.json()) : json({ error: 'Laudi is not running - press Start first' }, 503);
+      }
       if ((u.pathname === '/api/input' || u.pathname === '/api/autologin') && req.method === 'POST') {
         const b = await readBody(req);
         const r = await botCall(u.pathname === '/api/input' ? '/input' : '/login', { method: 'POST', body: JSON.stringify(b), timeout: 60_000 }).catch(() => null);

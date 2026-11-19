@@ -65,6 +65,22 @@ function start({ ctx, status, autologin, mainPage }) {
           }
           return json(res, { msg: 'unknown site' });
         }
+        if (u.pathname === '/cookies' && req.method === 'POST') {
+          // a login you did yourself on your phone ("k=v; k2=v2") -> Laudi's browser
+          const b = await body(req);
+          const domain = b.site === 'tiktok' ? '.tiktok.com' : null;
+          if (!domain) return json(res, { error: 'unknown site' }, 400);
+          const list = String(b.cookies || '')
+            .split(/;\s*/)
+            .map((kv) => [kv.slice(0, kv.indexOf('=')), kv.slice(kv.indexOf('=') + 1)])
+            .filter(([k, v]) => k && v);
+          await ctx.addCookies(list.map(([name, value]) => ({ name, value, domain, path: '/', secure: true, httpOnly: /session|sid|token/i.test(name), sameSite: 'None' })));
+          const p = mainPage();
+          await p.goto('https://www.tiktok.com/messages', { waitUntil: 'domcontentloaded', timeout: 45_000 }).catch(() => {});
+          const ok = (await ctx.cookies('https://www.tiktok.com')).some((c) => c.name === 'sessionid' && c.value);
+          console.log(`[login] TikTok login saved from your phone (${list.length} cookies) - ${ok ? 'logged in ✅' : 'not accepted'}`);
+          return json(res, { msg: ok ? '✅ Saved! Laudi is logged in to TikTok' : 'TikTok did not accept it - log in again and retry' });
+        }
         if (u.pathname === '/remote' && req.method === 'POST') {
           const b = await body(req);
           fs.appendFileSync(path.join(config.dataDir, 'remote.txt'), String(b.line || '').replace(/[\r\n]+/g, ' ') + '\n');
